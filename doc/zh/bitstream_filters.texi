@@ -1,0 +1,992 @@
+@chapter 比特流过滤器
+@c man begin BITSTREAM FILTERS
+
+当您配置 FFmpeg 构建时，默认启用所有支持的比特流过滤器。
+您可以使用配置选项 @code{--list-bsfs} 列出所有可用的过滤器。
+
+您可以使用配置选项 @code{--disable-bsfs} 禁用所有比特流过滤器，
+并使用选项 @code{--enable-bsf=BSF} 选择性地启用任何比特流过滤器，
+或者使用选项 @code{--disable-bsf=BSF} 禁用特定的比特流过滤器。
+
+ff* 工具的 @code{-bsfs} 选项将显示构建中包含的所有支持的比特流过滤器列表。
+
+ff* 工具有一个按流应用的 -bsf 选项，接受逗号分隔的过滤器列表，
+其参数在过滤器名称后面用 '=' 分隔。
+
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v filter1[=opt1=str1:opt2=str2][,filter2] OUTPUT
+@end example
+
+以下是当前可用的比特流过滤器及其参数（如果有）的描述。
+
+@section aac_adtstoasc
+
+将 MPEG-2/4 AAC ADTS 转换为 MPEG-4 音频特定配置比特流。
+
+此过滤器从 MPEG-2/4 ADTS 头创建 MPEG-4 AudioSpecificConfig 并删除 ADTS 头。
+
+例如，当将 AAC 流从原始 ADTS AAC 或 MPEG-TS 容器复制到 MP4A-LATM、
+FLV 文件或 MOV/MP4 及相关格式（如 3GP 或 M4A）时，需要此过滤器。
+请注意，对于 MP4A-LATM 和 MOV/MP4 及相关格式，它会自动插入。
+
+@section av1_metadata
+
+修改嵌入在 AV1 流中的元数据。
+
+@table @option
+@item td
+在流的所有时间单元中插入或删除时间分隔符 OBU。
+
+@table @samp
+@item insert
+在每个尚未有 TD 的 TU 开头插入 TD。
+@item remove
+从每个有 TD 的 TU 开头删除 TD。
+@end table
+
+@item color_primaries
+@item transfer_characteristics
+@item matrix_coefficients
+设置流中的颜色描述字段（参见 AV1 第 6.4.2 节）。
+
+@item color_range
+设置流中的颜色范围（参见 AV1 第 6.4.2 节；请注意，
+对于使用 BT.709 原色、sRGB 传输特性和恒等（RGB）矩阵系数的流无法设置此项）。
+@table @samp
+@item tv
+有限范围。
+@item pc
+全范围。
+@end table
+
+@item chroma_sample_position
+设置流中的色度采样位置（参见 AV1 第 6.4.2 节）。
+这只能为 4:2:0 流设置。
+
+@table @samp
+@item vertical
+左侧位置（与 MPEG-2 和 H.264 中的默认值匹配）。
+@item colocated
+左上位置。
+@end table
+
+@item tick_rate
+设置序列头中定时信息的节拍率（@emph{time_scale / num_units_in_display_tick}）。
+@item num_ticks_per_picture
+设置每帧的节拍数，以指示流具有固定帧率。
+如果未同时设置 @option{tick_rate}，则忽略此项。
+
+@item delete_padding
+删除填充 OBU。
+
+@end table
+
+@section chomp
+
+删除数据包末尾的零填充。
+
+@section dca_core
+
+从 DCA/DTS 流中提取核心，丢弃 DTS-HD 等扩展。
+
+@section dovi_rpu
+
+操作 HEVC/AV1 比特流中的杜比视界元数据，可选启用元数据压缩。
+
+@table @option
+@item strip
+如果启用，从流中剥离所有杜比视界元数据（配置记录 + RPU 数据块）。
+@item compression
+要启用的压缩级别。
+@table @samp
+@item none
+无元数据压缩。
+@item limited
+有限元数据压缩方案。应与大多数设备兼容。这是默认值。
+@item extended
+扩展元数据压缩。设备不要求支持此功能。
+请注意，此级别当前在 libavcodec 中的行为与 @samp{limited} 相同。
+@end table
+@end table
+
+@section dump_extra
+
+将额外数据添加到过滤数据包的开头，除非这些数据包已经完全以
+要添加的额外数据开头。
+
+@table @option
+@item freq
+附加参数指定应过滤哪些数据包。
+它接受以下值：
+@table @samp
+@item k
+@item keyframe
+将额外数据添加到所有关键帧数据包
+
+@item e
+@item all
+将额外数据添加到所有数据包
+@end table
+@end table
+
+如果未指定，则假定为 @samp{k}。
+
+例如，以下 @command{ffmpeg} 命令强制在 @code{libx264} 编码器生成的
+H.264 数据包中使用全局头（从而禁用单个数据包头），
+但通过将存储在额外数据中的头添加到关键帧数据包来修正它们：
+@example
+ffmpeg -i INPUT -map 0 -flags:v +global_header -c:v libx264 -bsf:v dump_extra out.ts
+@end example
+
+@section dv_error_marker
+
+DV 中标记为损坏的块将被指定颜色的块替换。
+
+@table @option
+@item color
+用于替换损坏块的颜色
+@item sta
+一个 16 位掩码，指定 16 个可能的错误状态值中哪些要用彩色块替换。
+0xFFFE 是默认值，它替换所有非 0 错误状态值。
+@table @samp
+@item ok
+无错误，无隐藏
+@item err
+错误，无隐藏
+@item res
+保留
+@item notok
+错误或隐藏
+@item notres
+非保留
+@item Aa, Ba, Ca, Ab, Bb, Cb, A, B, C, a, b, erri, erru
+特定错误状态代码
+@end table
+参见第 44-46 页或
+@url{http://web.archive.org/web/20060927044735/http://www.smpte.org/smpte_store/standards/pdf/s314m.pdf}
+的第 5.5 节
+
+@end table
+
+@section eac3_core
+
+从 E-AC-3 流中提取核心，丢弃额外声道。
+
+@section eia608_to_smpte436m
+
+从 @code{EIA_608} 流转换为 @code{SMPTE_436M_ANC} 数据流，
+将隐藏式字幕包装在 CTA-708 CDP VANC 数据包中。
+
+@table @option
+@item line_number
+选择生成的 VANC 数据包应放在哪一行。通常需要第 9 行（默认）或第 11 行。
+@item wrapping_type
+选择 SMPTE 436M 包装类型，默认为 @samp{vanc_frame}。
+它接受以下值：
+@table @samp
+@item vanc_frame
+VANC 帧（隔行或分段逐行帧）
+@item vanc_field_1
+@item vanc_field_2
+@item vanc_progressive_frame
+@end table
+@item sample_coding
+选择 SMPTE 436M 采样编码，默认为 @samp{8bit_luma}。
+它接受以下值：
+@table @samp
+@item 8bit_luma
+8 位分量亮度采样
+@item 8bit_color_diff
+8 位分量色差采样
+@item 8bit_luma_and_color_diff
+8 位分量亮度和色差采样
+@item 10bit_luma
+10 位分量亮度采样
+@item 10bit_color_diff
+10 位分量色差采样
+@item 10bit_luma_and_color_diff
+10 位分量亮度和色差采样
+@item 8bit_luma_parity_error
+带奇偶校验错误的 8 位分量亮度采样
+@item 8bit_color_diff_parity_error
+带奇偶校验错误的 8 位分量色差采样
+@item 8bit_luma_and_color_diff_parity_error
+带奇偶校验错误的 8 位分量亮度和色差采样
+@end table
+@item initial_cdp_sequence_cntr
+CDP 的 16 位无符号整数 @code{cdp_hdr_sequence_cntr} 和 @code{cdp_ftr_sequence_cntr} 字段的初始值。默认为 0。
+@item cdp_frame_rate
+设置 CDP 的 @code{cdp_frame_rate} 字段。这实际上不会改变数据流的时序，
+只会改变在生成的 CDP 数据包中该字段插入的值。默认为 @samp{30000/1001}。
+@end table
+
+@section extract_extradata
+
+提取带内额外数据。
+
+某些编解码器允许长期头（例如 MPEG-2 序列头或 H.264/HEVC (VPS/)SPS/PPS）
+以"带内"方式传输（即作为包含编码帧的比特流的一部分）
+或"带外"方式传输（例如在容器级别）。
+在 FFmpeg 术语中，后一种形式称为"额外数据"。
+
+此比特流过滤器检测带内头并将它们作为额外数据提供。
+
+@table @option
+@item remove
+启用此选项后，提取后将从比特流中删除长期头。
+@end table
+
+@section filter_units
+
+从流中删除具有给定集合中或不在给定集合中的类型的单元。
+
+@table @option
+@item pass_types
+要通过的单元类型或单元类型范围的列表，同时删除所有其他单元。
+这指定为用 '|' 分隔的单元类型值或用 '-' 分隔的值范围列表。
+
+@item remove_types
+与 @option{pass_types} 相同，但删除给定集合中的单元并通过所有其他单元。
+@end table
+
+pass_types 和 remove_types 使用的类型对应于 H.264、HEVC 和 H.266 中的 NAL 单元类型
+（nal_unit_type）（参见 H.264 和 HEVC 规范中的表 7-1 或 H.266 规范中的表 5），
+对应于 JPEG 的标记值（不带 0xFF 前缀），以及 MPEG-2 的不带起始码前缀的起始码
+（即 0x000001 后面的字节）。
+对于 VP8 和 VP9，每个单元的类型都为零。
+
+此转换不会更改额外数据，但请注意，如果流包含内联参数集，
+则删除它们可能导致输出不可用。
+
+例如，要从 H.264 流中删除所有非 VCL NAL 单元：
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v 'filter_units=pass_types=1-5' OUTPUT
+@end example
+
+要从 H.265 流中删除所有 AUD、SEI 和填充：
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v 'filter_units=remove_types=35|38-40' OUTPUT
+@end example
+
+要从 MPEG-2 流中删除所有用户数据，包括隐藏式字幕：
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v 'filter_units=remove_types=178' OUTPUT
+@end example
+
+要从 H264 流中删除所有 SEI，包括隐藏式字幕：
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v 'filter_units=remove_types=6' OUTPUT
+@end example
+
+要从 HEVC 流中删除所有前缀和后缀 SEI，包括隐藏式字幕和动态 HDR：
+@example
+ffmpeg -i INPUT -c:v copy -bsf:v 'filter_units=remove_types=39|40' OUTPUT
+@end example
+
+@section hapqa_extract
+
+从 HAPQA 文件中提取 Rgb 或 Alpha 部分，无需重新压缩，以便创建 HAPQ 或 HAPAlphaOnly 文件。
+
+@table @option
+@item texture
+指定要保留的纹理。
+
+@table @option
+@item color
+@item alpha
+@end table
+
+@end table
+
+将 HAPQA 转换为 HAPQ
+@example
+ffmpeg -i hapqa_inputfile.mov -c copy -bsf:v hapqa_extract=texture=color -tag:v HapY -metadata:s:v:0 encoder="HAPQ" hapq_file.mov
+@end example
+
+将 HAPQA 转换为 HAPAlphaOnly
+@example
+ffmpeg -i hapqa_inputfile.mov -c copy -bsf:v hapqa_extract=texture=alpha -tag:v HapA -metadata:s:v:0 encoder="HAPAlpha Only" hapalphaonly_file.mov
+@end example
+
+@section h264_metadata
+
+修改嵌入在 H.264 流中的元数据。
+
+@table @option
+@item aud
+在流的所有访问单元中插入或删除 AUD NAL 单元。
+
+@table @samp
+@item pass
+@item insert
+@item remove
+@end table
+
+默认为 pass。
+
+@item sample_aspect_ratio
+在 VUI 参数中设置流的采样宽高比。
+参见 H.264 表 E-1。
+
+@item overscan_appropriate_flag
+设置流是否适合使用过扫描显示（参见 H.264 第 E.2.1 节）。
+
+@item video_format
+@item video_full_range_flag
+设置流中的视频格式（参见 H.264 第 E.2.1 节和表 E-2）。
+
+@item colour_primaries
+@item transfer_characteristics
+@item matrix_coefficients
+设置流中的颜色描述（参见 H.264 第 E.2.1 节和表 E-3、E-4 和 E-5）。
+
+@item chroma_sample_loc_type
+设置流中的色度采样位置（参见 H.264 第 E.2.1 节和图 E-1）。
+
+@item tick_rate
+在 VUI 参数中设置节拍率（time_scale / num_units_in_tick）。
+这是流中可表示的最小时间单位，在许多情况下代表流的场率
+（帧率的两倍）。
+@item fixed_frame_rate_flag
+设置流是否具有固定帧率 - 通常这表示帧率正好是节拍率的一半，
+但确切含义取决于隔行扫描和图片结构
+（参见 H.264 第 E.2.1 节和表 E-6）。
+@item zero_new_constraint_set_flags
+将 SPS 中的 constraint_set4_flag 和 constraint_set5_flag 清零。
+这些位在 H.264 规范的早期版本中是保留的，因此某些硬件解码器
+要求这些位为零。将其清零的结果仍然是有效的比特流。
+
+@item crop_left
+@item crop_right
+@item crop_top
+@item crop_bottom
+设置 SPS 中的帧裁剪偏移量。如果流已经被裁剪，这些值将替换当前值。
+
+这些字段以像素为单位设置。请注意，如果色度是亚采样的或流是隔行扫描的，
+某些尺寸可能无法表示（参见 H.264 第 7.4.2.1.1 节）。
+
+@item sei_user_data
+插入一个字符串作为 SEI 未注册用户数据。参数必须是
+@emph{UUID+string} 格式，其中 UUID 是十六进制数字
+（可能用连字符分隔），字符串可以是任何内容。
+
+例如，@samp{086f3693-b7b3-4f2c-9653-21492feee5b8+hello} 将
+插入与给定 UUID 关联的字符串 ``hello''。
+
+@item delete_filler
+删除填充 NAL 单元和填充 SEI 消息。
+
+@item display_orientation
+插入、提取或删除显示方向 SEI 消息。
+参见 H.264 第 D.1.27 和 D.2.27 节了解语法和语义。
+
+@table @samp
+@item pass
+@item insert
+@item remove
+@item extract
+@end table
+
+默认为 pass。
+
+插入模式与 @code{rotate} 和 @code{flip} 选项配合使用。
+在插入或删除模式下，任何预先存在的显示方向消息都将被删除。
+提取模式将显示矩阵作为边数据附加到数据包。
+
+@item rotate
+设置显示方向 SEI 中的旋转角度（逆时针角度，以度为单位）。
+范围为 -360 到 +360。默认为 NaN。
+
+@item flip
+设置显示方向 SEI 中的翻转。
+
+@table @samp
+@item horizontal
+@item vertical
+@end table
+
+默认为未设置。
+
+@item level
+设置 SPS 中的级别。参考 H.264 第 A.3 节和表 A-1 到 A-5。
+
+参数必须是级别名称（例如 @samp{4.2}），level_idc 值
+（例如 @samp{42}），或特殊名称 @samp{auto}
+表示过滤器应尝试从输入流属性猜测级别。
+
+@end table
+
+@section h264_mp4toannexb
+
+将 H.264 比特流从长度前缀模式转换为起始码前缀模式
+（如 ITU-T H.264 规范的附录 B 中所定义）。
+
+某些流格式需要此转换，通常是 MPEG-2 传输流格式（复用器 @code{mpegts}）。
+
+例如，要使用 @command{ffmpeg} 将包含 H.264 流的 MP4 文件重新复用为 mpegts 格式，
+可以使用以下命令：
+
+@example
+ffmpeg -i INPUT.mp4 -codec copy -bsf:v h264_mp4toannexb OUTPUT.ts
+@end example
+
+请注意，对于 MPEG-TS（复用器 @code{mpegts}）和原始 H.264
+（复用器 @code{h264}）输出格式，此过滤器会自动插入。
+
+@section h264_redundant_pps
+
+这对一些包含冗余 PPS 的蓝光 BDMV H264 流应用特定修复。
+PPS 修改了流的不相关参数，混淆了需要正确额外数据的其他转换。
+
+这些受影响流上使用的编码器在整个流中添加了额外的 PPS，
+改变了初始 QP 以及是否启用了加权预测。
+这在将流复制到全局头容器后会导致问题，因为起始 PPS 不适合流的其余部分。
+例如，一个副作用是定位将返回混乱的输出，直到出现新的 PPS。
+
+此 BSF 删除额外的 PPS 并重写切片头，使流使用全局头中的单个前导 PPS，
+从而解决问题。
+
+@section hevc_metadata
+
+修改嵌入在 HEVC 流中的元数据。
+
+@table @option
+@item aud
+在流的所有访问单元中插入或删除 AUD NAL 单元。
+
+@table @samp
+@item insert
+@item remove
+@end table
+
+@item sample_aspect_ratio
+在 VUI 参数中设置流的采样宽高比。
+
+@item video_format
+@item video_full_range_flag
+设置流中的视频格式（参见 H.265 第 E.3.1 节和表 E.2）。
+
+@item colour_primaries
+@item transfer_characteristics
+@item matrix_coefficients
+设置流中的颜色描述（参见 H.265 第 E.3.1 节和表 E.3、E.4 和 E.5）。
+
+@item chroma_sample_loc_type
+设置流中的色度采样位置（参见 H.265 第 E.3.1 节和图 E.1）。
+
+@item tick_rate
+在 VPS 和 VUI 参数中设置节拍率（time_scale / num_units_in_tick）。
+与 @option{num_ticks_poc_diff_one} 结合使用，可以在流中设置恒定帧率。
+请注意，当流在容器中时，它可能会被容器参数覆盖。
+
+@item num_ticks_poc_diff_one
+在 VPS 和 VUI 中设置 poc_proportional_to_timing_flag 并使用此值
+设置 num_ticks_poc_diff_one_minus1（参见 H.265 第 7.4.3.1 和 E.3.1 节）。
+如果未同时设置 @option{tick_rate}，则忽略此项。
+
+@item crop_left
+@item crop_right
+@item crop_top
+@item crop_bottom
+设置 SPS 中的一致性窗口裁剪偏移量。如果流已经被裁剪，
+这些值将替换当前值。
+
+这些字段以像素为单位设置。请注意，如果色度是亚采样的，
+某些尺寸可能无法表示（H.265 第 7.4.3.2.1 节）。
+
+@item width
+@item height
+设置裁剪后的宽度和高度。
+
+@item level
+设置 VPS 和 SPS 中的级别。参见 H.265 第 A.4 节和表 A.6 和 A.7。
+
+参数必须是级别名称（例如 @samp{5.1}），@emph{general_level_idc} 值
+（例如 @samp{153} 表示级别 5.1），或特殊名称 @samp{auto}
+表示过滤器应尝试从输入流属性猜测级别。
+
+@end table
+
+@section hevc_mp4toannexb
+
+将 HEVC/H.265 比特流从长度前缀模式转换为起始码前缀模式
+（如 ITU-T H.265 规范的附录 B 中所定义）。
+
+某些流格式需要此转换，通常是 MPEG-2 传输流格式（复用器 @code{mpegts}）。
+
+例如，要使用 @command{ffmpeg} 将包含 HEVC 流的 MP4 文件重新复用为 mpegts 格式，
+可以使用以下命令：
+
+@example
+ffmpeg -i INPUT.mp4 -codec copy -bsf:v hevc_mp4toannexb OUTPUT.ts
+@end example
+
+请注意，对于 MPEG-TS（复用器 @code{mpegts}）和原始 HEVC/H.265
+（复用器 @code{h265} 或 @code{hevc}）输出格式，此过滤器会自动插入。
+
+@section imxdump
+
+修改比特流以适合 MOV 并可被 Final Cut Pro 解码器使用。
+此过滤器仅适用于 mpeg2video 编解码器，对于 Final Cut Pro 7 及更新版本
+配合适当的 @option{-tag:v} 可能不需要。
+
+例如，要将 30 MB/sec NTSC IMX 重新复用到 MOV：
+
+@example
+ffmpeg -i input.mxf -c copy -bsf:v imxdump -tag:v mx3n output.mov
+@end example
+
+@section mjpeg2jpeg
+
+将 MJPEG/AVI1 数据包转换为完整的 JPEG/JFIF 数据包。
+
+MJPEG 是一种视频编解码器，其中每个视频帧本质上是一个 JPEG 图像。
+可以无损提取单个帧，例如通过
+
+@example
+ffmpeg -i ../some_mjpeg.avi -c:v copy frames_%d.jpg
+@end example
+
+不幸的是，这些块是不完整的 JPEG 图像，因为它们缺少解码所需的 DHT 段。
+引用自 @url{http://www.digitalpreservation.gov/formats/fdd/fdd000063.shtml}：
+
+Avery Lee 于 2001 年在 rec.video.desktop 新闻组中写道，
+"MJPEG，或者至少是 AVI 中具有 MJPG fourcc 的 MJPEG，是受限的 JPEG，
+具有固定的——且*省略的*——霍夫曼表。JPEG 必须是 YCbCr 色彩空间，
+必须是 4:2:2，必须使用基本霍夫曼编码，而不是算术或渐进编码。
+...您确实可以提取 MJPEG 帧并用常规 JPEG 解码器解码它们，
+但您必须在它们前面加上 DHT 段，否则解码器将不知道如何解压缩数据。
+OpenDML 规范中给出了所需的确切表。"
+
+此比特流过滤器修补从 MJPEG 流提取的帧的头
+（携带 AVI1 头 ID 并缺少 DHT 段）以生成完全合格的 JPEG 图像。
+
+@example
+ffmpeg -i mjpeg-movie.avi -c:v copy -bsf:v mjpeg2jpeg frame_%d.jpg
+exiftran -i -9 frame*.jpg
+ffmpeg -i frame_%d.jpg -c:v copy rotated.avi
+@end example
+
+@section mjpegadump
+
+向比特流添加 MJPEG A 头，以便 Quicktime 能够解码。
+
+@anchor{mov2textsub}
+@section mov2textsub
+
+从 MOV 字幕中提取可表示的文本文件，从每个字幕数据包中剥离元数据头。
+
+另请参见 @ref{text2movsub} 过滤器。
+
+@section mpeg2_metadata
+
+修改嵌入在 MPEG-2 流中的元数据。
+
+@table @option
+@item display_aspect_ratio
+设置流中的显示宽高比。
+
+支持以下固定值：
+@table @option
+@item 4/3
+@item 16/9
+@item 221/100
+@end table
+任何其他值将导致发出方形像素信号
+（参见 H.262 第 6.3.3 节和表 6-3）。
+
+@item frame_rate
+设置流中的帧率。这是由已知值表与小乘数和除数组合构建的 -
+如果提供的值不能精确表示，将使用最接近的可表示值
+（参见 H.262 第 6.3.3 节和表 6-4）。
+
+@item video_format
+设置流中的视频格式（参见 H.262 第 6.3.6 节和表 6-6）。
+
+@item colour_primaries
+@item transfer_characteristics
+@item matrix_coefficients
+设置流中的颜色描述（参见 H.262 第 6.3.6 节和表 6-7、6-8 和 6-9）。
+
+@end table
+
+@section mpeg4_unpack_bframes
+
+解包 DivX 风格的打包 B 帧。
+
+DivX 风格的打包 B 帧不是有效的 MPEG-4，只是 Windows 视频子系统损坏的变通方法。
+它们使用更多空间，可能导致轻微的 AV 同步问题，需要更多 CPU 功率解码
+（除非播放器有一些解码图片队列来补偿每包 2,0,2,0 帧的风格），
+并且如果复制到标准容器（如 mp4 或 mpeg-ps/ts）中会导致问题，
+因为 MPEG-4 解码器可能无法解码它们，因为它们不是有效的 MPEG-4。
+
+例如，要使用 @command{ffmpeg} 修复包含具有 DivX 风格打包 B 帧的 MPEG-4 流的 AVI 文件，
+可以使用以下命令：
+
+@example
+ffmpeg -i INPUT.avi -codec copy -bsf:v mpeg4_unpack_bframes OUTPUT.avi
+@end example
+
+@section noise
+
+损坏数据包的内容或简单地丢弃它们而不损坏容器。
+可用于模糊测试或测试错误弹性/隐藏。
+
+参数：
+@table @option
+@item amount
+接受一个表达式，其每包求值决定该数据包中字节的修改频率。
+值小于 0 将导致可变频率。
+默认为 0，不进行修改。但是，如果既未指定 amount 也未指定 drop，
+amount 将设置为 @var{-1}。请参阅下面接受的变量。
+@item drop
+接受一个按数据包求值的表达式，其值决定该数据包是否被丢弃。
+求值为正值会导致数据包被丢弃。求值为负值会导致它被丢弃的可变概率，
+大致与值的大小成反比。默认为 0，不丢弃。请参阅下面接受的变量。
+@item dropamount
+接受一个非负整数，它分配一个可变的丢弃概率，大致与值成反比。
+默认为 0，不丢弃。此选项保留用于向后兼容，等同于将 drop 设置为
+相同大小的负值，即 @code{dropamount=4} 与 @code{drop=-4} 相同。
+如果也指定了 drop，则忽略此选项。
+@end table
+
+@code{amount} 和 @code{drop} 都接受包含以下变量的表达式：
+
+@table @samp
+@item n
+数据包的索引，从零开始。
+@item tb
+数据包时间戳的时基。
+@item pts
+数据包显示时间戳。
+@item dts
+数据包解码时间戳。
+@item nopts
+表示 AV_NOPTS_VALUE 的常量。
+@item startpts
+流中看到的第一个非 AV_NOPTS_VALUE PTS。
+@item startdts
+流中看到的第一个非 AV_NOPTS_VALUE DTS。
+@item duration
+@itemx d
+数据包持续时间，以时基单位表示。
+@item pos
+数据包在输入中的位置；未知或未设置时可能为 -1。
+@item size
+数据包大小，以字节为单位。
+@item key
+数据包是否标记为关键帧。
+@item state
+一个伪随机整数，主要来源于数据包负载的内容。
+@end table
+
+@subsection 示例
+对每个字节应用修改但不丢弃任何数据包。
+@example
+ffmpeg -i INPUT -c copy -bsf noise=1 output.mkv
+@end example
+
+在时间戳 30 秒后丢弃每个未标记为关键帧的视频数据包，但不修改任何剩余数据包。
+@example
+ffmpeg -i INPUT -c copy -bsf:v noise=drop='gt(pts*tb\,30)*not(key)' output.mkv
+@end example
+
+每 10 秒丢弃一秒的音频，并向其余音频添加一些随机噪声。
+@example
+ffmpeg -i INPUT -c copy -bsf:a noise=amount=-1:drop='between(mod(pts*tb\,10)\,9\,10)' output.mkv
+@end example
+
+@section null
+此比特流过滤器原封不动地传递数据包。
+
+@section pcm_rechunk
+
+将 PCM 音频重新打包为每包固定数量的采样或每秒固定的包率。
+这类似于 @ref{asetnsamples,,asetnsamples 音频滤镜,ffmpeg-filters}
+但作用于音频包而不是音频帧。
+
+@table @option
+@item nb_out_samples, n
+设置每个输出音频包的采样数。该数字旨在作为@emph{每个声道}的采样数。
+默认值为 1024。
+
+@item pad, p
+如果设置为 1，过滤器将用静音填充最后一个音频包，使其包含与之前的包
+相同数量的采样（或大致相同数量的采样，参见 @option{frame_rate}）。
+默认值为 1。
+
+@item frame_rate, r
+此选项使过滤器每秒输出固定数量的包而不是每包固定数量的采样。
+如果音频采样率不能被帧率整除，则采样数将不是恒定的，
+而是会略有变化，以便每个包尽可能接近帧边界开始。
+使用此选项优先于 @option{nb_out_samples}。
+@end table
+
+您可以使用 @option{frame_rate} 选项为 NTSC 帧率的 48kHz 音频生成
+著名的 1602-1601-1602-1601-1602 模式。
+@example
+ffmpeg -f lavfi -i sine=r=48000:d=1 -c pcm_s16le -bsf pcm_rechunk=r=30000/1001 -f framecrc -
+@end example
+
+@section pgs_frame_merge
+
+将以"显示集结束"段结尾的 PGS 字幕段序列合并为单个数据包。
+
+某些支持 PGS 字幕的容器需要此功能（复用器 @code{matroska}）。
+
+@section prores_metadata
+
+修改嵌入在 prores 流中的颜色属性元数据。
+
+@table @option
+@item color_primaries
+设置色彩原色。
+可用值有：
+
+@table @samp
+@item auto
+保持相同的色彩原色属性（默认）。
+
+@item unknown
+@item bt709
+@item bt470bg
+BT601 625
+
+@item smpte170m
+BT601 525
+
+@item bt2020
+@item smpte431
+DCI P3
+
+@item smpte432
+P3 D65
+
+@end table
+
+@item transfer_characteristics
+设置颜色传输。
+可用值有：
+
+@table @samp
+@item auto
+保持相同的传输特性属性（默认）。
+
+@item unknown
+@item bt709
+BT 601、BT 709、BT 2020
+@item smpte2084
+SMPTE ST 2084
+@item arib-std-b67
+ARIB STD-B67
+@end table
+
+
+@item matrix_coefficients
+设置矩阵系数。
+可用值有：
+
+@table @samp
+@item auto
+保持相同的色彩空间属性（默认）。
+
+@item unknown
+@item bt709
+@item smpte170m
+BT 601
+
+@item bt2020nc
+@end table
+@end table
+
+为文件的每一帧设置 Rec709 色彩空间
+@example
+ffmpeg -i INPUT -c copy -bsf:v prores_metadata=color_primaries=bt709:color_trc=bt709:colorspace=bt709 output.mov
+@end example
+
+为文件的每一帧设置混合对数伽马参数
+@example
+ffmpeg -i INPUT -c copy -bsf:v prores_metadata=color_primaries=bt2020:color_trc=arib-std-b67:colorspace=bt2020nc output.mov
+@end example
+
+@section remove_extra
+
+从数据包中删除额外数据。
+
+它接受以下参数：
+@table @option
+@item freq
+设置从哪些帧类型删除额外数据。
+
+@table @samp
+@item k
+仅从非关键帧删除额外数据。
+
+@item keyframe
+仅从关键帧删除额外数据。
+
+@item e, all
+从所有帧删除额外数据。
+
+@end table
+@end table
+
+@section setts
+设置数据包中的 PTS 和 DTS。
+
+它接受以下参数：
+@table @option
+@item ts
+@item pts
+@item dts
+设置 PTS、DTS 或两者的表达式。
+@item duration
+设置持续时间的表达式。
+@item time_base
+设置输出时基。
+@item prescale
+设置是否在表达式求值前将时间字段转换为用户设置的输出时基。默认为 0。
+@end table
+
+表达式通过 eval API 求值，可以包含以下常量：
+
+@table @option
+@item N
+输入数据包的计数。从 0 开始。
+
+@item TS
+在 @code{ts} 或 @code{dts} 选项的情况下为输入中的解复用时间戳，
+或在 @code{pts} 选项的情况下为显示时间戳。
+
+@item POS
+数据包在文件中的原始位置，如果当前数据包未定义则为未定义
+
+@item DTS
+输入中的解复用时间戳。
+
+@item PTS
+输入中的显示时间戳。
+
+@item DURATION
+输入中的持续时间。
+
+@item STARTDTS
+第一个数据包的 DTS。
+
+@item STARTPTS
+第一个数据包的 PTS。
+
+@item PREV_INDTS
+前一个输入 DTS。
+
+@item PREV_INPTS
+前一个输入 PTS。
+
+@item PREV_INDURATION
+前一个输入持续时间。
+
+@item PREV_OUTDTS
+前一个输出 DTS。
+
+@item PREV_OUTPTS
+前一个输出 PTS。
+
+@item PREV_OUTDURATION
+前一个输出持续时间。
+
+@item NEXT_DTS
+下一个输入 DTS。
+
+@item NEXT_PTS
+下一个输入 PTS。
+
+@item NEXT_DURATION
+下一个输入持续时间。
+
+@item TB
+时间字段所用的时基。如果启用 prescale 则为用户设置的输出时基，否则为输入时基。
+
+@item TB_OUT
+输出时基。
+
+@item SR
+数据包所属流的采样率。
+
+@item NOPTS
+AV_NOPTS_VALUE 常量。
+@end table
+
+例如，将 PTS 设置为等于 DTS（如果涉及 B 帧，不建议这样做）：
+@example
+ffmpeg -i INPUT -c:a copy -bsf:a setts=pts=DTS out.mkv
+@end example
+
+@section showinfo
+记录基本数据包信息。主要用于测试、调试和开发。
+
+@section smpte436m_to_eia608
+
+从 @code{SMPTE_436M_ANC} 数据流转换为 @code{EIA_608} 流，
+从 CTA-708 CDP VANC 数据包中提取隐藏式字幕，并忽略所有其他数据。
+
+@anchor{text2movsub}
+@section text2movsub
+
+将文本字幕转换为带有元数据头的 MOV 字幕（由 @code{mov_text} 编解码器使用）。
+
+另请参见 @ref{mov2textsub} 过滤器。
+
+@section trace_headers
+
+记录包含编码流头中所有语法元素的跟踪输出
+（单个编码块级别以上的所有内容）。
+这对于调试低级流问题很有用。
+
+支持 AV1、H.264、H.265、(M)JPEG、MPEG-2 和 VP9，
+但根据构建，可能只有其中一部分可用。
+
+@section truehd_core
+
+从 TrueHD 流中提取核心，丢弃 ATMOS 数据。
+
+@section vp9_metadata
+
+修改嵌入在 VP9 流中的元数据。
+
+@table @option
+@item color_space
+设置帧头中的色彩空间值。请注意，任何设置为 RGB 的帧都将隐式设置为 PC 范围，
+并且 RGB 与配置文件 0 和 2 不兼容。
+@table @samp
+@item unknown
+@item bt601
+@item bt709
+@item smpte170
+@item smpte240
+@item bt2020
+@item rgb
+@end table
+
+@item color_range
+设置帧头中的颜色范围值。请注意，色彩空间强制的任何值都将优先于此值。
+@table @samp
+@item tv
+@item pc
+@end table
+@end table
+
+@section vp9_superframe
+
+将 VP9 不可见（alt-ref）帧合并回 VP9 超级帧。
+这修复了拆分/分段的 VP9 流的合并，其中 alt-ref 帧与其可见对应帧分离。
+
+@section vp9_superframe_split
+
+将 VP9 超级帧拆分为单个帧。
+
+@section vp9_raw_reorder
+
+给定具有正确时间戳但可能乱序的 VP9 流，
+插入额外的 show-existing-frame 数据包以修正顺序。
+
+@c man end BITSTREAM FILTERS

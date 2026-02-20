@@ -1,0 +1,322 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle 使用 Git 开发 FFmpeg
+
+@titlepage
+@center @titlefont{使用 Git 开发 FFmpeg}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 简介
+
+本文档旨在提供一些有用的 Git 命令的快速参考。你应该始终使用 Git 直接提供的广泛而详细的文档：
+
+@example
+git --help
+man git
+@end example
+
+显示可用的子命令，
+
+@example
+git <command> --help
+man git-<command>
+@end example
+
+显示关于子命令 <command> 的信息。
+
+更多信息可以在 @url{http://gitref.org, Git 参考} 网站上找到。
+
+有关 Git 项目的更多信息，请访问 @url{http://git-scm.com/, Git 网站}。
+
+遇到问题时请查阅这些资源，它们非常全面。
+
+以下是 Git 的基本介绍和一些 FFmpeg 特定的指南，以简化对项目的贡献。
+
+@chapter 基本用法
+
+@section 获取 Git
+
+你可以从 @url{http://git-scm.com/} 获取 Git。
+大多数发行版和操作系统都提供了它的软件包。
+
+@section 克隆源代码树
+
+@example
+git clone https://git.ffmpeg.org/ffmpeg.git <target>
+@end example
+
+这将把 FFmpeg 源代码放入 @var{<target>} 目录中。
+
+@example
+git clone git@@source.ffmpeg.org:ffmpeg <target>
+@end example
+
+这将把 FFmpeg 源代码放入 @var{<target>} 目录中，并允许你将更改推送回远程仓库。
+
+@example
+git clone git@@ffmpeg.org:ffmpeg-web <target>
+@end example
+
+这将把 FFmpeg 网站的源代码放入 @var{<target>} 目录中。
+
+如果你没有 ffmpeg-web 仓库的写权限，你可以在进行只读 ffmpeg-web 克隆后创建补丁：
+
+@example
+git clone git://ffmpeg.org/ffmpeg-web <target>
+@end example
+
+确保你的检出中没有 Windows 行尾符，否则可能会遇到莫名其妙的编译失败。实现这一点的一种方法是运行：
+
+@example
+git config --global core.autocrlf false
+@end example
+
+@anchor{更新源代码树到最新版本}
+@section 更新源代码树到最新版本
+
+@example
+git pull (--rebase)
+@end example
+
+从跟踪的分支拉取最新更改。跟踪的分支可以是远程的。默认情况下 master 分支跟踪远程 origin 中的 master 分支。
+
+@float IMPORTANT
+推荐使用 @command{--rebase}（见下文）。
+@end float
+
+@section 变基你的本地分支
+
+@example
+git pull --rebase
+@end example
+
+从主仓库获取更改并在其上重播你的本地提交。这是保持所有本地更改在 FFmpeg master 树顶部所必需的。主树会拒绝包含合并提交的推送。
+
+@section 添加/删除文件/目录
+
+@example
+git add [-A] <filename/dirname>
+git rm [-r] <filename/dirname>
+@end example
+
+Git 需要被通知你对工作目录所做的所有使文件出现或消失的更改。跨文件的行移动会被自动跟踪。
+
+@section 显示修改
+
+@example
+git diff <filename(s)>
+@end example
+
+将以统一 diff 格式显示你工作目录中的所有本地修改。
+
+@section 检查变更日志
+
+@example
+git log <filename(s)>
+@end example
+
+你也可以使用图形工具如 @command{gitview} 或 @command{gitk}，或者 @url{https://git.ffmpeg.org/ffmpeg.git} 上的 Web 界面。
+
+@section 检查源代码树状态
+
+@example
+git status
+@end example
+
+检测你所做的所有更改，并列出在提交时将执行的操作（添加、修改、删除等）。
+
+@section 提交
+
+@example
+git diff --check
+@end example
+
+在提交前仔细检查你的更改，以避免以后出现问题。所有有经验的开发者在每次提交时都会这样做，无论多小。
+
+@example
+git add [-i|-p|-A] <filenames/dirnames>
+@end example
+
+确保你已经告诉 Git 你的姓名、电子邮件地址和 GPG 密钥：
+
+@example
+git config --global user.name "My Name"
+git config --global user.email my@@email.invalid
+git config --global user.signingkey ABCDEF0123245
+@end example
+
+启用签名所有提交或使用 -S：
+
+@example
+git config --global commit.gpgsign true
+@end example
+
+@example
+git commit
+@end example
+
+Git 会将选定的更改提交到你当前的本地分支。
+
+@section 编写提交消息
+
+日志消息应该简洁但具有描述性。
+
+第一行必须包含上下文、冒号和对提交所做内容的非常简短的总结。必要时可以添加详细信息，用空行分隔。这些详细信息每行不应超过 60-72 个字符，包含代码时除外。
+
+良好提交消息的示例：
+
+@example
+avcodec/cbs: add a helper to read extradata within packet side data
+
+Using ff_cbs_read() on the raw buffer will not parse it as extradata,
+resulting in parsing errors for example when handling ISOBMFF avcC.
+This helper works around that.
+@end example
+
+@section 准备补丁集
+
+@example
+git format-patch <commit> [-o directory]
+@end example
+
+将为 @var{<commit>} 和当前 @var{HEAD} 之间的每个提交生成补丁集。
+
+@example
+git format-patch origin/master
+@end example
+
+将为当前分支上不在上游的所有提交生成补丁。
+
+@example
+git format-patch -n
+@end example
+
+将从最后 @var{n} 个提交生成补丁。
+
+@section 发送补丁进行审查
+
+@example
+git send-email <commit list|directory>
+@end example
+
+将发送 @command{git format-patch} 创建的补丁或直接生成它们。注意此工具通常需要单独安装（例如 Debian 系发行版上的 @var{git-email} 包）。
+
+@section 重命名/移动/复制文件或文件内容
+
+Git 自动跟踪这些更改，使其成为普通提交。
+
+@example
+mv/cp path/file otherpath/otherfile
+git add [-A] .
+git commit
+@end example
+
+@chapter Git 配置
+
+为了简化一些工作流程，建议同时配置你的个人 Git 安装和你的本地 FFmpeg 仓库。
+
+@section 个人 Git 安装
+
+在你的 @file{~/.gitconfig} 中添加以下内容，以帮助 @command{git send-email} 和 @command{git format-patch} 检测重命名：
+
+@example
+[diff]
+        renames = copy
+@end example
+
+@section 仓库配置
+
+为了让 @command{git send-email} 自动将补丁发送到 ffmpeg-devel 邮件列表，在 @file{/path/to/ffmpeg/repository/.git/config} 中添加以下内容：
+
+@example
+[sendemail]
+        to = ffmpeg-devel@@ffmpeg.org
+@end example
+
+@chapter FFmpeg 特定
+
+@section 撤销有问题的提交
+
+@example
+git reset <commit>
+@end example
+
+@command{git reset} 将取消提交直到 @var{<commit>} 的更改，重写当前分支历史。
+
+@example
+git commit --amend
+@end example
+
+允许你快速修改最后一次提交的详细信息。
+
+@example
+git rebase -i origin/master
+@end example
+
+将在主仓库之上重播本地提交，允许在过程中编辑、合并或删除其中一些。
+
+@float NOTE
+@command{git reset}、@command{git commit --amend} 和 @command{git rebase} 会重写历史，所以你只应该在本地或主题分支上使用它们。主仓库会拒绝这些更改。
+@end float
+
+@example
+git revert <commit>
+@end example
+
+@command{git revert} 将生成一个回退提交。这不会使有问题的提交从历史中消失。
+
+@section 推送更改到远程树
+
+@example
+git push origin master --dry-run
+@end example
+
+将模拟推送本地 master 分支到默认远程（@var{origin}），并列出将推送的分支和范围或提交。
+
+@example
+git remote add <name> <url>
+@end example
+
+将添加带有名称引用的额外远程。
+
+@example
+git push <remote> <refspec>
+@end example
+
+将更改推送到 @var{<remote>} 仓库。
+
+@chapter gpg 密钥生成
+
+如果你还没有 gpg 密钥，我们建议你创建一个基于 ed25519 的密钥，因为它小巧、快速且安全。
+
+@example
+gpg --default-new-key-algo "ed25519/cert,sign+cv25519/encr" --quick-generate-key "human@@server.com"
+@end example
+
+生成密钥时，确保指定的电子邮件与 git 中使用的电子邮件匹配。
+
+@chapter 推送前检查清单
+
+一旦你有一组准备好推送的提交，请按照以下检查清单仔细检查所有内容是否正确。
+
+首先，确保你将要推送的提交和分支与你想推送的内容一致。你可以通过先使用 @option{--dry-run} 运行 git push 命令来查看将推送的内容。
+
+接下来让代码通过我们测试套件的完整运行。
+
+@itemize
+@item @command{make distclean}
+@item @command{/path/to/ffmpeg/configure}
+@item @command{make fate}
+@item 如果 fate 由于缺少样本而失败，运行 @command{make fate-rsync} 并重试
+@end itemize
+
+确保在推送之前检查了所有更改。另外注意，每个单独的提交都应该通过测试套件，而不仅仅是一系列补丁的结果。
+
+@chapter 服务器问题
+
+如果你在 Git 服务器上遇到技术问题，请联系项目管理员 @email{root@@ffmpeg.org}。

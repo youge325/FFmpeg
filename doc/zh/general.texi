@@ -1,0 +1,15 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle 通用文档
+@titlepage
+@center @titlefont{通用文档}
+@end titlepage
+
+@top
+
+@contents
+
+@include general_contents.texi
+
+@bye

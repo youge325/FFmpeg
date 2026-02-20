@@ -288,9 +288,28 @@ sub ffmpeg_begin_file($$$)
       $links = $self->_get_links ($filename, $element);
     }
 
+    my $lang = $ENV{"FFMPEG_LANG"} || "en";
+    my $lang_label_en = ($lang eq "zh") ? "English" : "English";
+    my $lang_label_zh = ($lang eq "zh") ? "\x{4E2D}\x{6587}" : "\x{4E2D}\x{6587}";
+    my $lang_switcher = '';
+
+    if ($lang eq "zh") {
+        $lang_switcher = '<div class="lang-switcher" style="float:right;margin:10px 0;">' .
+            '<span class="label">' . $lang_label_zh . '</span> | ' .
+            '<a href="../' . $filename . '">' . $lang_label_en . '</a>' .
+            '</div>';
+    } else {
+        $lang_switcher = '<div class="lang-switcher" style="float:right;margin:10px 0;">' .
+            '<a href="zh/' . $filename . '">' . $lang_label_zh . '</a> | ' .
+            '<span class="label">' . $lang_label_en . '</span>' .
+            '</div>';
+    }
+
+    my $css_prefix = ($lang eq "zh") ? "../" : "";
+
     my $head1 = $ENV{"FFMPEG_HEADER1"} || <<EOT;
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<html lang="$lang">
 <!-- Created by $program_and_version, $program_homepage -->
   <head>
     <meta charset="utf-8">
@@ -303,11 +322,12 @@ EOT
     my $head2 = $ENV{"FFMPEG_HEADER2"} || <<EOT;
     </title>
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="style.min.css">
+    <link rel="stylesheet" type="text/css" href="${css_prefix}bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="${css_prefix}style.min.css">
   </head>
   <body>
     <div class="container">
+      $lang_switcher
       <h1>
 EOT
 

@@ -1,0 +1,39 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle Libavformat 文档
+@titlepage
+@center @titlefont{Libavformat 文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 描述
+@c man begin DESCRIPTION
+
+libavformat 库提供了一个通用的复用和解复用多媒体内容的框架。它支持多种输入和输出格式。
+
+@c man end DESCRIPTION
+
+@chapter 另见
+
+@ifhtml
+@url{ffmpeg.html,ffmpeg}, @url{ffplay.html,ffplay}, @url{ffprobe.html,ffprobe}
+@end ifhtml
+
+@ifnothtml
+ffmpeg(1), ffplay(1), ffprobe(1)
+@end ifnothtml
+
+@include authors.texi
+
+@ignore
+
+@setfilename libavformat
+@settitle Libavformat 文档
+
+@end ignore
+
+@bye

@@ -8,16 +8,32 @@ sub FFmpeg_end_section($$)
 {
 }
 
+my $FFMPEG_LANG = $ENV{"FFMPEG_LANG"} || "en";
+my $css_prefix = ($FFMPEG_LANG eq "zh") ? "../" : "";
+
 my $TEMPLATE_HEADER1 = $ENV{"FFMPEG_HEADER1"} || <<EOT;
 <!DOCTYPE html>
-<html lang="en">
+<html lang="$FFMPEG_LANG">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>FFmpeg documentation</title>
-    <link rel="stylesheet" href="bootstrap.min.css" />
-    <link rel="stylesheet" href="style.min.css" />
+    <link rel="stylesheet" href="${css_prefix}bootstrap.min.css" />
+    <link rel="stylesheet" href="${css_prefix}style.min.css" />
 EOT
+
+my $lang_switcher = '';
+if ($FFMPEG_LANG eq "zh") {
+    $lang_switcher = '<div class="lang-switcher" style="float:right;margin:10px 0;">' .
+        '<span class="label">' . "\x{4E2D}\x{6587}" . '</span> | ' .
+        '<a href="../FILENAME_PLACEHOLDER">' . 'English' . '</a>' .
+        '</div>';
+} else {
+    $lang_switcher = '<div class="lang-switcher" style="float:right;margin:10px 0;">' .
+        '<a href="zh/FILENAME_PLACEHOLDER">' . "\x{4E2D}\x{6587}" . '</a> | ' .
+        '<span class="label">English</span>' .
+        '</div>';
+}
 
 my $TEMPLATE_HEADER2 = $ENV{"FFMPEG_HEADER2"} || <<EOT;
   </head>
@@ -90,6 +106,34 @@ sub FFmpeg_print_page_head($$)
     $longtitle =~ s/Documentation.*//g;
     $longtitle = "FFmpeg documentation : " . $longtitle;
 
+    # Resolve language switcher filename
+    my $out_filename = '';
+    # texi2html sets out_filenames from --output
+    if (defined($Texi2HTML::THISDOC{'file_base_name'})) {
+        $out_filename = $Texi2HTML::THISDOC{'file_base_name'} . '.html';
+    }
+    if ($out_filename eq '' && defined($Texi2HTML::THISDOC{'filename'})) {
+        if (ref($Texi2HTML::THISDOC{'filename'}) eq 'HASH') {
+            $out_filename = $Texi2HTML::THISDOC{'filename'}{'out_filename'} || '';
+        } else {
+            $out_filename = $Texi2HTML::THISDOC{'filename'} || '';
+        }
+    }
+    # Fallback: derive from input filename in @ARGV
+    if ($out_filename eq '') {
+        foreach my $arg (@ARGV) {
+            if ($arg =~ /\.texi$/) {
+                $out_filename = $arg;
+                $out_filename =~ s/\.texi$/.html/;
+                last;
+            }
+        }
+    }
+    $out_filename =~ s/.*\///; # basename only
+    $out_filename = 'index.html' if ($out_filename eq '');
+    my $resolved_switcher = $lang_switcher;
+    $resolved_switcher =~ s/FILENAME_PLACEHOLDER/$out_filename/g;
+
     print $fh <<EOT;
 $TEMPLATE_HEADER1
 $description
@@ -101,6 +145,7 @@ $Texi2HTML::THISDOC{program_authors}
 -->
 $encoding
 $TEMPLATE_HEADER2
+$resolved_switcher
 EOT
 }
 

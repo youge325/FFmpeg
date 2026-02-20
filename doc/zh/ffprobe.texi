@@ -1,0 +1,647 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle ffprobe 文档
+@titlepage
+@center @titlefont{ffprobe 文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 概要
+
+ffprobe [@var{options}] @file{input_url}
+
+@chapter 描述
+@c man begin DESCRIPTION
+
+ffprobe 从多媒体流中收集信息并以人类和机器可读的方式打印。
+
+例如，它可用于检查多媒体流使用的容器格式及其中包含的每个媒体流的格式和类型。
+
+如果在输入中指定了 url，ffprobe 将尝试打开并探测该 url 内容。
+如果无法打开或无法识别为多媒体文件，将返回正的退出码。
+
+如果未使用 @option{o} 指定输出，ffprobe 将写入标准输出。
+
+ffprobe 既可作为独立应用程序使用，也可与文本滤镜结合使用，
+后者可执行更复杂的处理，例如统计处理或绘图。
+
+选项用于列出 ffprobe 支持的某些格式，或用于指定要显示哪些信息，
+以及设置 ffprobe 如何显示这些信息。
+
+ffprobe 输出设计为易于被文本滤镜解析，由一个或多个节组成，
+其形式由所选的写入器定义，写入器通过 @option{output_format} 选项指定。
+
+节可以包含其他嵌套节，并由名称（可与其他节共享）和唯一名称标识。
+参见 @option{sections} 的输出。
+
+存储在容器或流中的元数据标签会被识别并打印在相应的 "FORMAT"、"STREAM"、
+"STREAM_GROUP_STREAM" 或 "PROGRAM_STREAM" 节中。
+
+@c man end
+
+@chapter 选项
+@c man begin OPTIONS
+
+@include fftools-common-opts.texi
+
+@section 主要选项
+
+@table @option
+
+@item -f @var{format}
+强制使用的格式。
+
+@item -unit
+显示所显示值的单位。
+
+@item -prefix
+对显示的值使用 SI 前缀。
+除非使用 "-byte_binary_prefix" 选项，否则所有前缀均为十进制。
+
+@item -byte_binary_prefix
+对字节值强制使用二进制前缀。
+
+@item -sexagesimal
+对时间值使用六十进制格式 HH:MM:SS.MICROSECONDS。
+
+@item -pretty
+美化显示值的格式，相当于同时使用
+"-unit -prefix -byte_binary_prefix -sexagesimal" 选项。
+
+@item -output_format, -of, -print_format @var{writer_name}[=@var{writer_options}]
+设置输出打印格式。
+
+@var{writer_name} 指定写入器的名称，
+@var{writer_options} 指定要传递给写入器的选项。
+
+例如，要以 JSON 格式打印输出，指定：
+@example
+-output_format json
+@end example
+
+有关可用输出打印格式的更多详细信息，请参阅下面的写入器章节。
+
+@item -sections
+打印节结构和节信息，然后退出。输出不适合机器解析。
+
+@item -select_streams @var{stream_specifier}
+仅选择由 @var{stream_specifier} 指定的流。此选项仅影响与流相关的选项
+（例如 @code{show_streams}、@code{show_packets} 等）。
+
+例如，仅显示音频流，可以使用命令：
+@example
+ffprobe -show_streams -select_streams a INPUT
+@end example
+
+仅显示属于索引为 1 的视频流的视频数据包：
+@example
+ffprobe -show_packets -select_streams v:1 INPUT
+@end example
+
+@item -show_data
+显示有效载荷数据，以十六进制和 ASCII 转储形式（可使用 @option{-data_dump_format}
+选择其他格式）。与 @option{-show_packets} 配合使用时，将转储数据包的数据。
+与 @option{-show_streams} 配合使用时，将转储编解码器额外数据。
+
+转储作为 "data" 字段打印。可能包含换行符。
+
+@item -show_data_hash @var{algorithm}
+显示有效载荷数据的哈希值，对于数据包使用 @option{-show_packets}，
+对于编解码器额外数据使用 @option{-show_streams}。
+
+@item -data_dump_format @var{format}
+选择用于 @option{-show_data} 选项启用的数据转储的格式。
+默认为 @code{xxd}，这是一种与知名的 @command{xxd} 程序兼容的十六进制转储格式。
+也支持 @code{base64}。
+
+@item -show_error
+显示尝试探测输入时发现的错误信息。
+
+错误信息在名为 "ERROR" 的节中打印。
+
+@item -show_format
+显示输入多媒体流的容器格式信息。
+
+所有容器格式信息在名为 "FORMAT" 的节中打印。
+
+@item -show_entries @var{section_entries}
+设置要显示的条目列表。
+
+条目按以下语法指定。@var{section_entries} 包含以 @code{:} 分隔的节条目列表。
+每个节条目由节名称（或唯一名称）组成，可选地后跟该节的本地条目列表，以 @code{,} 分隔。
+
+如果指定了节名称但后面没有 @code{=}，则打印所有条目到输出，
+以及所有包含的节。否则只打印本地节条目列表中指定的条目。
+特别地，如果指定了 @code{=} 但本地条目列表为空，则该节不显示任何条目。
+
+请注意，本地节条目的指定顺序在输出中不被遵守，将保留通常的显示顺序。
+
+正式语法如下：
+@example
+@var{LOCAL_SECTION_ENTRIES} ::= @var{SECTION_ENTRY_NAME}[,@var{LOCAL_SECTION_ENTRIES}]
+@var{SECTION_ENTRY}         ::= @var{SECTION_NAME}[=[@var{LOCAL_SECTION_ENTRIES}]]
+@var{SECTION_ENTRIES}       ::= @var{SECTION_ENTRY}[:@var{SECTION_ENTRIES}]
+@end example
+
+例如，要仅显示每个流的索引和类型，以及数据包的 PTS 时间、
+时长和流索引，可以指定参数：
+@example
+packet=pts_time,duration_time,stream_index : stream=index,codec_type
+@end example
+
+要显示 "format" 节中的所有条目，但仅显示 "stream" 节中的编解码器类型，
+指定参数：
+@example
+format : stream=codec_type
+@end example
+
+要显示流和格式节中的所有标签：
+@example
+stream_tags : format_tags
+@end example
+
+要仅显示流节中的 @code{title} 标签（如果可用）：
+@example
+stream_tags=title
+@end example
+
+@item -show_packets
+显示输入多媒体流中包含的每个数据包的信息。
+
+每个数据包的信息在名为 "PACKET" 的专用节中打印。
+
+@item -show_frames
+显示输入多媒体流中包含的每个帧和字幕的信息。
+
+每个帧的信息在名为 "FRAME" 或 "SUBTITLE" 的专用节中打印。
+
+@item -show_log @var{loglevel}
+根据 @var{loglevel} 中设置的值显示解码器关于每个帧的日志信息
+（参见 @code{-loglevel}）。此选项需要 @code{-show_frames}。
+
+每个日志消息的信息在名为 "LOG" 的专用节中打印。
+
+@item -show_streams
+显示输入多媒体流中包含的每个媒体流的信息。
+
+每个媒体流信息在名为 "STREAM" 的专用节中打印。
+
+@item -show_programs
+显示输入多媒体流中包含的节目及其流的信息。
+
+每个媒体流信息在名为 "PROGRAM_STREAM" 的专用节中打印。
+
+@item -show_stream_groups
+显示输入多媒体流中包含的流组及其流的信息。
+
+每个媒体流信息在名为 "STREAM_GROUP_STREAM" 的专用节中打印。
+
+@item -show_chapters
+显示格式中存储的章节信息。
+
+每个章节在名为 "CHAPTER" 的专用节中打印。
+
+@item -count_frames
+计算每个流的帧数并在相应的流节中报告。
+
+@item -count_packets
+计算每个流的数据包数并在相应的流节中报告。
+
+@item -read_intervals @var{read_intervals}
+
+仅读取指定的间隔。@var{read_intervals} 必须是以 "," 分隔的间隔规格序列。
+@command{ffprobe} 将定位到间隔起始点，并从该点继续读取。
+
+每个间隔由两个可选部分指定，以 "%" 分隔。
+
+第一部分指定间隔起始位置。它被解释为绝对位置，或如果前面有 "+" 字符
+则为相对于当前位置的偏移。如果未指定第一部分，读取此间隔时不进行定位。
+
+第二部分指定间隔结束位置。它被解释为绝对位置，或如果前面有 "+" 字符
+则为相对于当前位置的偏移。如果偏移规格以 "#" 开头，则被解释为
+从间隔起始点开始要读取的数据包数（不包括刷新数据包）。
+如果未指定第二部分，程序将读取到输入结束。
+
+请注意，定位不精确，因此实际间隔起始点可能与指定位置不同。
+此外，当指定间隔时长时，绝对结束时间将通过将时长加到定位文件找到的间隔
+起始点来计算，而不是加到指定的起始值。
+
+正式语法如下：
+@example
+@var{INTERVAL}  ::= [@var{START}|+@var{START_OFFSET}][%[@var{END}|+@var{END_OFFSET}]]
+@var{INTERVALS} ::= @var{INTERVAL}[,@var{INTERVALS}]
+@end example
+
+以下是几个示例。
+@itemize
+@item
+定位到时间 10，读取数据包直到找到的定位点之后 20 秒，
+然后定位到位置 @code{01:30}（1 分 30 秒）并读取数据包直到位置 @code{01:45}。
+@example
+10%+20,01:30%01:45
+@end example
+
+@item
+定位到位置 @code{01:23} 后仅读取 42 个数据包：
+@example
+01:23%+#42
+@end example
+
+@item
+从开始仅读取前 20 秒：
+@example
+%+20
+@end example
+
+@item
+从开始读取到位置 @code{02:30}：
+@example
+%02:30
+@end example
+@end itemize
+
+@item -show_private_data, -private
+显示私有数据，即取决于所显示特定元素格式的数据。
+此选项默认启用，但您可能需要为特定用途禁用它，
+例如创建符合 XSD 的 XML 输出时。
+
+@item -show_program_version
+显示与程序版本相关的信息。
+
+版本信息在名为 "PROGRAM_VERSION" 的节中打印。
+
+@item -show_library_versions
+显示与库版本相关的信息。
+
+每个库的版本信息在名为 "LIBRARY_VERSION" 的节中打印。
+
+@item -show_versions
+显示与程序和库版本相关的信息。
+这等同于同时设置 @option{-show_program_version} 和
+@option{-show_library_versions} 选项。
+
+@item -show_pixel_formats
+显示 FFmpeg 支持的所有像素格式的信息。
+
+每种格式的像素格式信息在名为 "PIXEL_FORMAT" 的节中打印。
+
+@item -show_optional_fields @var{value}
+某些写入器（如 JSON 和 XML）省略打印值无效或不适用的字段，
+而其他写入器始终打印。此选项允许控制此行为。
+有效值为 @code{always}/@code{1}、@code{never}/@code{0} 和 @code{auto}/@code{-1}。
+默认值为 @var{auto}。
+
+@item -analyze_frames
+分析帧和/或其附加数据直到提供的读取间隔，
+提供可能在流级别有用的额外信息。
+必须与 @option{-show_streams} 选项配合使用，否则无效。
+
+目前，启用此选项时提供的额外字段为
+@code{closed_captions} 和 @code{film_grain} 字段。
+
+例如，分析前 20 秒并填充这些字段：
+@example
+ffprobe -show_streams -analyze_frames -read_intervals "%+20" INPUT
+@end example
+
+@item -bitexact
+强制位精确输出，用于生成不依赖特定构建的输出。
+
+@item -i @var{input_url}
+读取 @var{input_url}。
+
+@item -o @var{output_url}
+将输出写入 @var{output_url}。如果未指定，输出发送到标准输出。
+
+@item -c:@var{media_specifier} @var{codec_name}
+@itemx -codec:@var{media_specifier} @var{codec_name}
+为由 @var{media_specifier} 标识的流强制使用特定的解码器实现，
+@var{media_specifier} 可取值 @code{a}（音频）、
+@code{v}（视频）、@code{s}（字幕）和 @code{d}（数据）。
+
+@end table
+@c man end
+
+@chapter 写入器
+@c man begin WRITERS
+
+写入器定义 @command{ffprobe} 采用的输出格式，将用于打印输出的所有部分。
+
+写入器可以接受一个或多个参数，指定要采用的选项。
+选项以 @var{key}=@var{value} 对的列表指定，以 ":" 分隔。
+
+所有写入器支持以下选项：
+
+@table @option
+@item string_validation, sv
+设置字符串验证模式。
+
+接受以下值。
+@table @samp
+@item fail
+如果在输入中发现无效的字符串（UTF-8）序列或编码点，写入器将立即失败。
+这对于验证输入元数据特别有用。
+
+@item ignore
+任何验证错误都将被忽略。这可能导致输出损坏，
+特别是使用 json 或 xml 写入器时。
+
+@item replace
+写入器将用 @option{string_validation_replacement} 指定的字符串
+替换无效的 UTF-8 序列或编码点。
+@end table
+
+默认值为 @samp{replace}。
+
+@item string_validation_replacement, svr
+设置当 @option{string_validation} 设置为 @samp{replace} 时使用的替换字符串。
+
+如果未指定该选项，写入器将假定为空字符串，
+即它将从输入字符串中删除无效序列。
+@end table
+
+以下是当前可用写入器的描述。
+
+@section default
+默认格式。
+
+以以下形式打印每个节：
+@example
+[SECTION]
+key1=val1
+...
+keyN=valN
+[/SECTION]
+@end example
+
+元数据标签在相应的 FORMAT、STREAM、STREAM_GROUP_STREAM 或
+PROGRAM_STREAM 节中作为一行打印，并以字符串 "TAG:" 为前缀。
+
+接受选项的描述如下。
+
+@table @option
+
+@item nokey, nk
+如果设置为 1，指定不打印每个字段的键。默认值为 0。
+
+@item noprint_wrappers, nw
+如果设置为 1，指定不打印节的头部和尾部。默认值为 0。
+@end table
+
+@section compact, csv
+紧凑格式和 CSV 格式。
+
+@code{csv} 写入器等同于 @code{compact}，但支持不同的默认值。
+
+每个节打印在单行上。
+如果未指定选项，输出形式为：
+@example
+section|key1=val1| ... |keyN=valN
+@end example
+
+元数据标签在相应的 "format" 或 "stream" 节中打印。
+元数据标签键（如果打印）以字符串 "tag:" 为前缀。
+
+接受选项的描述如下。
+
+@table @option
+
+@item item_sep, s
+指定用于分隔输出行中字段的字符。
+必须是单个可打印字符，默认为 "|"（@code{csv} 写入器为 ","）。
+
+@item nokey, nk
+如果设置为 1，指定不打印每个字段的键。
+默认值为 0（@code{csv} 写入器为 1）。
+
+@item escape, e
+设置要使用的转义模式，默认为 "c"（@code{csv} 写入器为 "csv"）。
+
+可取以下值之一：
+@table @option
+@item c
+执行类 C 转义。包含换行符（@samp{\n}）、回车符（@samp{\r}）、
+制表符（@samp{\t}）、换页符（@samp{\f}）、转义字符（@samp{\}）
+或项分隔符 @var{SEP} 的字符串使用类 C 转义方式进行转义，
+换行符转换为 @samp{\n}，回车符转换为 @samp{\r}，
+@samp{\} 转换为 @samp{\\}，分隔符 @var{SEP} 转换为 @samp{\@var{SEP}}。
+
+@item csv
+执行类 CSV 转义，如 RFC4180 所述。包含换行符（@samp{\n}）、
+回车符（@samp{\r}）、双引号（@samp{"}）或 @var{SEP} 的字符串
+用双引号括起来。
+
+@item none
+不执行转义。
+@end table
+
+@item print_section, p
+如果值为 @code{1}，在每行开头打印节名称；
+设置为 @code{0} 则禁用。默认值为 @code{1}。
+
+@end table
+
+@section flat
+扁平格式。
+
+自由格式输出，每行包含一个显式的 key=value，例如
+"streams.stream.3.tags.foo=bar"。输出经过 shell 转义，
+因此可以直接嵌入 sh 脚本中，只要分隔符字符是字母数字字符或下划线
+（参见 @var{sep_char} 选项）。
+
+接受选项的描述如下。
+
+@table @option
+@item sep_char, s
+用于分隔打印字段键中的章、节名称、ID 和潜在标签的分隔符字符。
+
+默认值为 @samp{.}。
+
+@item hierarchical, h
+指定节名称规格是否应为层次化的。如果设置为 1，且当前章中有多个节，
+则节名称将以章名称为前缀。值为 0 将禁用此行为。
+
+默认值为 1。
+@end table
+
+@section ini
+INI 格式输出。
+
+以基于 INI 的格式打印输出。
+
+采用以下约定：
+
+@itemize
+@item
+所有键和值均为 UTF-8
+@item
+@samp{.} 是子组分隔符
+@item
+换行符、@samp{\t}、@samp{\f}、@samp{\b} 和以下字符会被转义
+@item
+@samp{\} 是转义字符
+@item
+@samp{#} 是注释指示符
+@item
+@samp{=} 是键/值分隔符
+@item
+@samp{:} 未使用但通常被解析为键/值分隔符
+@end itemize
+
+此写入器接受以 @samp{:} 分隔的 @var{key}=@var{value} 对列表作为选项。
+
+接受选项的描述如下。
+
+@table @option
+@item hierarchical, h
+指定节名称规格是否应为层次化的。如果设置为 1，且当前章中有多个节，
+则节名称将以章名称为前缀。值为 0 将禁用此行为。
+
+默认值为 1。
+@end table
+
+@section json
+基于 JSON 的格式。
+
+每个节使用 JSON 表示法打印。
+
+接受选项的描述如下。
+
+@table @option
+
+@item compact, c
+如果设置为 1，启用紧凑输出，即每个节将打印在单行上。默认值为 0。
+@end table
+
+有关 JSON 的更多信息，请参见 @url{http://www.json.org/}。
+
+@section xml
+基于 XML 的格式。
+
+XML 输出在安装于 FFmpeg 数据目录的 XML 架构描述文件
+@file{ffprobe.xsd} 中描述。
+
+架构的更新版本可在 url
+@url{http://www.ffmpeg.org/schema/ffprobe.xsd} 获取，
+该 url 重定向到提交到 FFmpeg 开发源代码树的最新架构。
+
+请注意，仅当未指定特殊全局输出选项
+（@option{unit}、@option{prefix}、@option{byte_binary_prefix}、
+@option{sexagesimal} 等）时，发出的输出才符合 @file{ffprobe.xsd} 架构。
+
+接受选项的描述如下。
+
+@table @option
+
+@item fully_qualified, q
+如果设置为 1，指定输出是否应完全限定。默认值为 0。
+这是生成可通过 XSD 文件验证的 XML 文件所必需的。
+
+@item xsd_strict, x
+如果设置为 1，执行更多检查以确保输出符合 XSD。默认值为 0。
+此选项自动将 @option{fully_qualified} 设置为 1。
+@end table
+
+有关 XML 格式的更多信息，请参见
+@url{https://www.w3.org/XML/}。
+@c man end WRITERS
+
+@chapter 时间码
+@c man begin TIMECODE
+
+@command{ffprobe} 支持时间码提取：
+
+@itemize
+
+@item
+MPEG1/2 时间码从 GOP 中提取，可在视频流详细信息中获取
+（@option{-show_streams}，参见 @var{timecode}）。
+
+@item
+MOV 时间码从 tmcd 轨道中提取，可在 tmcd 流元数据中获取
+（@option{-show_streams}，参见 @var{TAG:timecode}）。
+
+@item
+DV、GXF 和 AVI 时间码可在格式元数据中获取
+（@option{-show_format}，参见 @var{TAG:timecode}）。
+
+@end itemize
+@c man end TIMECODE
+
+@include config.texi
+@ifset config-all
+@set config-readonly
+@ifset config-avutil
+@include utils.texi
+@end ifset
+@ifset config-avcodec
+@include codecs.texi
+@include bitstream_filters.texi
+@end ifset
+@ifset config-avformat
+@include formats.texi
+@include protocols.texi
+@end ifset
+@ifset config-avdevice
+@include devices.texi
+@end ifset
+@ifset config-swresample
+@include resampler.texi
+@end ifset
+@ifset config-swscale
+@include scaler.texi
+@end ifset
+@ifset config-avfilter
+@include filters.texi
+@end ifset
+@include general_contents.texi
+@end ifset
+
+@chapter 另见
+
+@ifhtml
+@ifset config-all
+@url{ffprobe.html,ffprobe},
+@end ifset
+@ifset config-not-all
+@url{ffprobe-all.html,ffprobe-all},
+@end ifset
+@url{ffmpeg.html,ffmpeg}, @url{ffplay.html,ffplay},
+@url{ffmpeg-utils.html,ffmpeg-utils},
+@url{ffmpeg-scaler.html,ffmpeg-scaler},
+@url{ffmpeg-resampler.html,ffmpeg-resampler},
+@url{ffmpeg-codecs.html,ffmpeg-codecs},
+@url{ffmpeg-bitstream-filters.html,ffmpeg-bitstream-filters},
+@url{ffmpeg-formats.html,ffmpeg-formats},
+@url{ffmpeg-devices.html,ffmpeg-devices},
+@url{ffmpeg-protocols.html,ffmpeg-protocols},
+@url{ffmpeg-filters.html,ffmpeg-filters}
+@end ifhtml
+
+@ifnothtml
+@ifset config-all
+ffprobe(1),
+@end ifset
+@ifset config-not-all
+ffprobe-all(1),
+@end ifset
+ffmpeg(1), ffplay(1),
+ffmpeg-utils(1), ffmpeg-scaler(1), ffmpeg-resampler(1),
+ffmpeg-codecs(1), ffmpeg-bitstream-filters(1), ffmpeg-formats(1),
+ffmpeg-devices(1), ffmpeg-protocols(1), ffmpeg-filters(1)
+@end ifnothtml
+
+@include authors.texi
+
+@ignore
+
+@setfilename ffprobe
+@settitle ffprobe 媒体探测器
+
+@end ignore
+
+@bye

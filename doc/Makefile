@@ -33,10 +33,24 @@ HTMLPAGES   = $(AVPROGS-yes:%=doc/%.html) $(AVPROGS-yes:%=doc/%-all.html) $(COMP
               $(SRC_PATH)/doc/style.min.css                             \
               $(SRC_PATH)/doc/default.css                               \
 
+# Chinese (zh) HTML pages
+HTMLPAGES_ZH = $(AVPROGS-yes:%=doc/zh/%.html) $(AVPROGS-yes:%=doc/zh/%-all.html) $(COMPONENTS-yes:%=doc/zh/%.html) $(LIBRARIES-yes:%=doc/zh/%.html) \
+              doc/zh/community.html                                     \
+              doc/zh/developer.html                                     \
+              doc/zh/faq.html                                           \
+              doc/zh/fate.html                                          \
+              doc/zh/general.html                                       \
+              doc/zh/git-howto.html                                     \
+              doc/zh/mailing-list-faq.html                              \
+              doc/zh/nut.html                                           \
+              doc/zh/platform.html                                      \
+              doc/zh/drawvg-reference.html                              \
+
 TXTPAGES    = doc/fate.txt                                              \
 
 
 DOCS-$(CONFIG_HTMLPAGES) += $(HTMLPAGES)
+DOCS-$(CONFIG_HTMLPAGES) += $(HTMLPAGES_ZH)
 DOCS-$(CONFIG_PODPAGES)  += $(PODPAGES)
 DOCS-$(CONFIG_MANPAGES)  += $(MANPAGES)
 DOCS-$(CONFIG_TXTPAGES)  += $(TXTPAGES)
@@ -84,6 +98,28 @@ doc/%-all.html: doc/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI)
 	$(M)texi2html -I doc -monolithic --D=config-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
 endif
 
+# Chinese HTML build rules
+doc/zh/%.html: TAG = HTML
+doc/zh/%-all.html: TAG = HTML
+
+ifdef HAVE_MAKEINFO_HTML
+doc/zh/%.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh makeinfo --html -I doc/zh -I doc --no-split -D config-not-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+
+doc/zh/%-all.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh makeinfo --html -I doc/zh -I doc --no-split -D config-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+else
+doc/zh/%.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh texi2html -I doc/zh -I doc -monolithic --D=config-not-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+
+doc/zh/%-all.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh texi2html -I doc/zh -I doc -monolithic --D=config-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+endif
+
 doc/%.pod: TAG = POD
 doc/%.pod: doc/%.texi $(SRC_PATH)/doc/texi2pod.pl $(GENTEXI)
 	$(Q)$(TEXIDEP)
@@ -102,6 +138,9 @@ doc/%.3: doc/%.pod $(GENTEXI)
 
 $(DOCS) doc/doxy/html: | doc/
 
+doc/zh/:
+	$(Q)mkdir -p doc/zh
+
 DOXY_INPUT      = $(INSTHEADERS)
 DOXY_INPUT_DEPS = $(addprefix $(SRC_PATH)/, $(DOXY_INPUT)) ffbuild/config.mak
 
@@ -118,9 +157,11 @@ install-man:
 ifdef CONFIG_HTMLPAGES
 install-progs-$(CONFIG_DOC): install-html
 
-install-html: $(HTMLPAGES)
+install-html: $(HTMLPAGES) $(HTMLPAGES_ZH)
 	$(Q)mkdir -p "$(DOCDIR)"
 	$(INSTALL) -m 644 $(HTMLPAGES) "$(DOCDIR)"
+	$(Q)mkdir -p "$(DOCDIR)/zh"
+	$(INSTALL) -m 644 $(HTMLPAGES_ZH) "$(DOCDIR)/zh"
 endif
 
 ifdef CONFIG_MANPAGES
@@ -153,6 +194,7 @@ docclean::
 	$(RM) $(CLEANSUFFIXES:%=doc/%)
 	$(RM) $(TXTPAGES) doc/*.html doc/*.pod doc/*.1 doc/*.3 doc/avoptions_*.texi
 	$(RM) -r doc/doxy/html
+	$(RM) -r doc/zh/*.html
 
 -include $(wildcard $(DOCS:%=%.d))
 

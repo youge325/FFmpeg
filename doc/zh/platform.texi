@@ -1,0 +1,309 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle 平台特定信息
+@titlepage
+@center @titlefont{平台特定信息}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 类 Unix 系统
+
+部分 FFmpeg 代码无法使用 GNU 汇编器 2.15 版本构建，而某些 AMD64 发行版仍然提供该版本。
+在 binutils 升级后，要确保你的编译器确实使用了所需版本的 gas，请运行：
+
+@example
+$(gcc -print-prog-name=as) --version
+@end example
+
+如果不是，那么你应该安装一个没有硬编码 gas 路径的不同编译器。在最坏的情况下，
+可以向 configure 传递 @code{--disable-asm}。
+
+@section 高级链接配置
+
+如果你静态编译了 FFmpeg 库，并且想用它们来构建自己的共享库，你可能需要强制启用
+PIC 支持（在 FFmpeg configure 时使用 @code{--enable-pic}），并在项目的 LDFLAGS 中
+添加以下选项：
+
+@example
+-Wl,-Bsymbolic
+@end example
+
+如果你的目标平台需要位置无关的可执行文件，你应该将正确的链接标志（例如 @code{-pie}）
+传递给 @code{--extra-ldexeflags}。
+
+@section BSD
+
+BSD make 无法构建 FFmpeg，你需要安装并使用 GNU Make（@command{gmake}）。
+
+@section (Open)Solaris
+
+构建 FFmpeg 需要 GNU Make，所以你必须调用 @command{gmake}，标准的 Solaris Make 不能用。
+当使用非 c99 前端（gcc、通用 suncc）构建时，请在 configure 选项中添加
+@code{--extra-libs=/usr/lib/values-xpg6.o} 或 @code{--extra-libs=/usr/lib/64/values-xpg6.o}，
+因为 libc 默认不兼容 c99 标准。由于系统 shell 的一个 bug，configure 执行的探测可能会引发异常
+导致 configure 自身崩溃。只需直接调用其他 shell（如 bash）即可解决此问题：
+
+@example
+bash ./configure
+@end example
+
+@anchor{Darwin}
+@section Darwin（Mac OS X、iPhone）
+
+Xcode 提供的工具链足以构建基本的未加速代码。
+
+PowerPC 或 ARM（iPhone）上的 Mac OS X 需要来自
+@url{https://github.com/FFmpeg/gas-preprocessor} 或
+@url{https://github.com/yuvi/gas-preprocessor}（目前已过时）的预处理器来构建
+优化的汇编函数。将该 Perl 脚本放在你的 PATH 中某个位置，
+FFmpeg 的 configure 会自动找到它。
+
+amd64 和 x86 上的 Mac OS X 需要 @command{nasm} 来构建大多数优化的汇编函数。
+@uref{http://www.finkproject.org/, Fink}、
+@uref{https://wiki.gentoo.org/wiki/Project:Prefix, Gentoo Prefix}、
+@uref{https://mxcl.github.com/homebrew/, Homebrew}
+或 @uref{http://www.macports.org, MacPorts} 可以轻松提供它。
+
+
+@chapter DOS
+
+由于各种原因，推荐使用交叉编译器。
+@url{http://www.delorie.com/howto/djgpp/linux-x-djgpp.html}
+
+
+@chapter OS/2
+
+有关在 OS/2 上编译 FFmpeg 的信息，请参见
+@url{http://www.edm2.com/index.php/FFmpeg}。
+
+
+@chapter Windows
+
+@section 使用 MinGW 或 MinGW-w64 进行原生 Windows 编译
+
+FFmpeg 可以使用 MinGW-w64 工具链在 Windows 上原生构建运行。
+从 @url{http://msys2.github.io/} 和/或 @url{http://mingw-w64.sourceforge.net/}
+安装最新版本的 MSYS2 和 MinGW-w64。你可以在下载部分和常见问题中找到详细的安装说明。
+
+注意事项：
+
+@itemize
+
+@item 不建议为 MSYS 环境构建，MSYS2 通过 @file{mingw64_shell.bat} 或
+@file{mingw32_shell.bat} 提供了完整的 MinGW-w64 环境，应该使用它们而不是
+@file{msys2_shell.bat} 提供的环境。
+
+@item 使用 MSYS2 构建可以通过在 Makefile 中禁用隐式规则来加速，方法是调用 @code{make -r}
+而不是普通的 @code{make}。这种加速对于普通的一次性构建几乎不存在，只有在第二次运行
+make 时才明显（例如在 @code{make install} 期间）。
+
+@item 要编译 FFplay，你必须安装 @uref{http://www.libsdl.org/, SDL} 的 MinGW 开发库
+和 @code{pkg-config}。
+
+@item 通过在配置 FFmpeg 时使用 @code{./configure --enable-shared}，你可以将 FFmpeg 库
+（例如 libavutil、libavcodec、libavformat）构建为 DLL。
+
+@end itemize
+
+@subsection 使用 MSYS2 进行原生 Windows 编译
+
+MSYS2 MinGW-w64 环境通过 @command{pacman} 提供现成的工具链和依赖项。
+
+确保使用 @file{mingw64_shell.bat} 或 @file{mingw32_shell.bat} 以获得正确的
+MinGW-w64 环境。默认安装在 @command{MinGW-w64 Win64 Shell} 和
+@command{MinGW-w64 Win32 Shell} 下提供了快捷方式。
+
+@example
+# 普通 msys2 包
+pacman -S make pkgconf diffutils
+
+# mingw-w64 包和工具链
+pacman -S mingw-w64-x86_64-nasm mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2
+@end example
+
+要编译 32 位版本，请将上述命令中的 @code{x86_64} 替换为 @code{i686}。
+
+@section Microsoft Visual C++ 或 Intel C++ Compiler for Windows
+
+FFmpeg 可以使用 MSVC 2013 或更高版本构建。
+
+你需要以下先决条件：
+
+@itemize
+@item @uref{http://msys2.github.io/, MSYS2}
+@item @uref{http://www.nasm.us/, NASM}
+（也可通过 MSYS2 的包管理器获取。）
+@end itemize
+
+要在 MSYS2 中设置正确的环境，你需要从 Visual Studio 或 Intel Compiler 命令提示符
+运行 @code{msys_shell.bat}。
+
+将 @code{nasm.exe} 放在你的 @code{PATH} 中的某个位置。
+
+接下来，确保你要使用的任何其他头文件和库（如 zlib）位于编译器可以找到的位置。
+通过修改 @code{LIB} 和 @code{INCLUDE} 环境变量，使其包含这些目录的 @strong{Windows 风格}
+路径来实现。或者，你可以尝试使用 @code{--extra-cflags}/@code{--extra-ldflags}
+configure 选项。
+
+最后，运行：
+
+@example
+MSVC:
+./configure --toolchain=msvc
+
+ICL:
+./configure --toolchain=icl
+
+make
+make install
+@end example
+
+如果你希望编译共享库，请在 configure 选项中添加 @code{--enable-shared}。请注意，
+由于 MSVC 和 ICL 处理 DLL 导入和导出的方式，你不能同时编译静态库和共享库，
+启用共享库将自动禁用静态库。
+
+注意事项：
+
+@itemize
+
+@item 如果你希望使用 zlib 支持来构建，你需要从某处获取兼容的 zlib 二进制文件及
+MSVC 导入库，或者如果你希望静态链接，可以按照以下说明用 MSVC 构建兼容的
+@code{zlib.lib}。无论使用哪种方法，你都必须遵循步骤 3，否则编译将失败。
+@enumerate
+@item 获取 @uref{http://zlib.net/, zlib 源代码}。
+@item 编辑 @code{win32/Makefile.msc} 使其使用 -MT 而不是 -MD，因为 FFmpeg 也是这样构建的。
+@item 编辑 @code{zconf.h} 并删除其对 @code{unistd.h} 的包含。构建 FFmpeg 时会错误地包含它。
+@item 运行 @code{nmake -f win32/Makefile.msc}。
+@item 将 @code{zlib.lib}、@code{zconf.h} 和 @code{zlib.h} 移到 MSVC 可以找到的位置。
+@end enumerate
+
+@item FFmpeg 已在 i686 和 x86_64 上使用以下环境进行测试：
+@itemize
+@item Visual Studio 2013 Pro 和 Express
+@item Intel Composer XE 2013
+@item Intel Composer XE 2013 SP1
+@end itemize
+其他环境未受官方支持。
+
+@end itemize
+
+@subsection 使用 Microsoft Visual C++ 链接 FFmpeg
+
+如果你计划链接 MSVC 构建的静态库，你需要确保在项目设置中将 @code{Runtime Library}
+设置为 @code{Multi-threaded (/MT)}。
+
+你需要将 @code{inline} 定义为 MSVC 能理解的形式：
+@example
+#define inline __inline
+@end example
+
+另请注意，如 @strong{Microsoft Visual C++} 中所述，你需要一个 MSVC 兼容的
+@uref{http://code.google.com/p/msinttypes/, inttypes.h}。
+
+如果你计划使用 dlltool 创建的导入库，你必须在链接器优化设置下将 @code{References}
+设置为 @code{No (/OPT:NOREF)}，否则生成的二进制文件将在运行时失败。
+使用 @code{lib.exe} 生成的导入库不需要这样做。
+此问题已在上游报告：
+@url{http://sourceware.org/bugzilla/show_bug.cgi?id=12633}。
+
+要创建与 @code{/OPT:REF} 选项（在 Release 模式下默认启用）兼容的导入库，
+请按照以下步骤操作：
+
+@enumerate
+
+@item 打开 @emph{Visual Studio 命令提示符}。
+
+或者，在普通命令行提示符中，调用 @file{vcvars32.bat} 来设置 Visual C++ 工具的
+环境变量（此文件的标准位置类似于
+@file{C:\Program Files (x86_\Microsoft Visual Studio 10.0\VC\bin\vcvars32.bat}）。
+
+@item 进入存储创建的 LIB 和 DLL 文件的 @file{bin} 目录。
+
+@item 使用 @command{lib.exe} 生成新的导入库：
+
+@example
+lib /machine:i386 /def:..\lib\foo-version.def  /out:foo.lib
+@end example
+
+将 @code{foo-version} 和 @code{foo} 替换为相应的库名称。
+
+@end enumerate
+
+@anchor{Cross compilation for Windows with Linux}
+@section 在 Linux 上交叉编译 Windows 版本
+
+你必须使用 @url{http://www.mingw.org/} 上提供的 MinGW 交叉编译工具。
+
+然后使用以下选项配置 FFmpeg：
+@example
+./configure --target-os=mingw32 --cross-prefix=i386-mingw32msvc-
+@end example
+（你可以根据 MinGW 工具选择的前缀更改 cross-prefix）。
+
+然后你可以使用 @uref{http://www.winehq.com/, Wine} 轻松测试 FFmpeg。
+
+@section 在 Cygwin 下编译
+
+请使用 Cygwin 1.7.x，因为已过时的 1.5.x Cygwin 版本的 C 库中缺少 llrint()。
+
+安装 Cygwin 时包含所有 "Base" 包，以及以下 "Devel" 包：
+@example
+binutils, gcc4-core, make, git, mingw-runtime, texinfo
+@end example
+
+要运行 FATE，你还需要以下 "Utils" 包：
+@example
+diffutils
+@end example
+
+如果你想使用额外的库构建 FFmpeg，请从任何 Cygwin 包仓库下载 Ogg 和 Vorbis 的
+Cygwin "Devel" 包：
+@example
+libogg-devel, libvorbis-devel
+@end example
+
+以下库包只能从 @uref{http://sourceware.org/cygwinports/, Cygwin Ports} 获取：
+
+@example
+libSDL-devel, libgsm-devel, libmp3lame-devel,
+speex-devel, libtheora-devel, libxvidcore-devel
+@end example
+
+对于 x264，建议从源代码构建，因为它的发展太快，Cygwin Ports 跟不上。
+
+@section 在 Cygwin 下交叉编译 Windows 版本
+
+使用 Cygwin，你可以创建不需要 cygwin1.dll 的 Windows 二进制文件。
+
+只需按照之前的说明安装 Cygwin，再加上以下额外的 "Devel" 包：
+@example
+gcc-mingw-core, mingw-runtime, mingw-zlib
+@end example
+
+并在 configure 调用中添加一些特殊标志。
+
+对于静态构建运行
+@example
+./configure --target-os=mingw32 --extra-cflags=-mno-cygwin --extra-libs=-mno-cygwin
+@end example
+
+对于共享库构建
+@example
+./configure --target-os=mingw32 --enable-shared --disable-static --extra-cflags=-mno-cygwin --extra-libs=-mno-cygwin
+@end example
+
+@section ARM64EC
+
+FFmpeg 不打算支持 Windows ARM64EC 构建配置；为了 ARM64EC 而更改各个库的补丁将不会被接受。
+
+但仍然可能在此构建配置下构建 FFmpeg；这样的构建可能在某种程度上看起来可以工作。
+然而，这样的构建可能存在一些 ABI 不一致性——我们不愿意修复这些问题。
+
+（更改 aarch64 汇编代码以严格支持 ARM64EC 需要对基本上所有此类汇编代码进行条件编译/修改，
+这将带来巨大的维护负担。此外，修改库的 ABI 接口以修复 ABI 不一致性可能需要大量的侵入性更改。）
+
+@bye

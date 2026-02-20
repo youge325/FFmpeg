@@ -1,0 +1,1114 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle ffmpeg 文档
+@titlepage
+@center @titlefont{ffmpeg 文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 概要
+
+ffmpeg [@var{global_options}] @{[@var{input_file_options}] -i @file{input_url}@} ... @{[@var{output_file_options}] @file{output_url}@} ...
+
+@chapter 描述
+@c man begin DESCRIPTION
+
+@command{ffmpeg} 是一个通用的媒体转换器。它可以读取各种输入（包括实时采集/录制设备），
+进行滤镜处理，并将它们转码成多种输出格式。
+
+@command{ffmpeg} 从任意数量的输入（可以是普通文件、管道、网络流、采集设备等）读取数据，
+由 @code{-i} 选项指定，并写入任意数量的输出，由普通输出 url 指定。
+命令行中无法被解释为选项的内容都被视为输出 url。
+
+每个输入或输出原则上可以包含任意数量的不同类型的基本流（视频/音频/字幕/附件/数据），
+但容器格式可能会限制允许的流数量和/或类型。从哪些输入选择哪些流进入哪个输出，
+可以自动完成，也可以使用 @code{-map} 选项完成（参见 @ref{Stream selection} 章节）。
+
+要在选项中引用输入/输出，必须使用它们的索引（从 0 开始）。
+例如，第一个输入是 @code{0}，第二个是 @code{1}，依此类推。同样，
+输入/输出中的流也通过索引引用。例如 @code{2:3} 表示第三个输入或输出中的第四个流。
+另请参见 @ref{Stream specifiers} 章节。
+
+一般规则是，选项应用于下一个指定的文件。因此顺序很重要，
+你可以在命令行中多次使用相同的选项。每次出现都会应用于下一个输入或输出文件。
+此规则的例外是全局选项（例如日志级别），应首先指定。
+
+不要混合输入和输出文件——先指定所有输入文件，然后指定所有输出文件。
+也不要混合属于不同文件的选项。所有选项只应用于下一个输入或输出文件，并在文件之间重置。
+
+以下是一些简单示例。
+
+@itemize
+@item
+将输入媒体文件转换为不同格式，通过重新编码媒体流：
+@example
+ffmpeg -i input.avi output.mp4
+@end example
+
+@item
+将输出文件的视频比特率设置为 64 kbit/s：
+@example
+ffmpeg -i input.avi -b:v 64k -bufsize 64k output.mp4
+@end example
+
+@item
+将输出文件的帧率强制设置为 24 fps：
+@example
+ffmpeg -i input.avi -r 24 output.mp4
+@end example
+
+@item
+将输入文件（仅对原始格式有效）的帧率强制设置为 1 fps，
+输出文件的帧率强制设置为 24 fps：
+@example
+ffmpeg -r 1 -i input.m2v -r 24 output.mp4
+@end example
+@end itemize
+
+对于原始输入文件可能需要使用格式选项。
+
+@c man end DESCRIPTION
+
+@chapter 详细描述
+@c man begin DETAILED DESCRIPTION
+
+@command{ffmpeg} 从下面列出的组件构建转码管线。程序的操作就是输入数据块从源端沿管道流向目标端，
+沿途被经过的组件转换。
+
+以下类型的组件可用：
+@itemize
+@item
+@emph{解复用器}（demuxer）读取输入源以提取
+
+@itemize
+@item
+全局属性，如元数据或章节；
+@item
+输入基本流列表及其属性
+@end itemize
+
+每个 @option{-i} 选项创建一个解复用器实例，将编码的 @emph{数据包} 发送给 @emph{解码器} 或 @emph{复用器}。
+
+在其他文献中，解复用器有时被称为 @emph{分离器}（splitter），因为它们的主要功能是将文件分离成基本流（尽管某些文件只包含一个基本流）。
+
+@item
+@emph{解码器} 接收音频、视频或字幕基本流的编码（压缩）@emph{数据包}，
+并将它们解码成原始 @emph{帧}（视频为像素数组，音频为 PCM）。
+解码器通常与 @emph{解复用器} 中的基本流关联（并从中接收输入），
+但有时也可以独立存在（参见 @ref{Loopback decoders}）。
+
+@item
+@emph{滤镜图} 处理和转换原始音频或视频 @emph{帧}。滤镜图由一个或多个
+单独的 @emph{滤镜} 链接成的图组成。滤镜图有两种类型——@emph{简单} 和 @emph{复杂}，
+分别使用 @option{-filter} 和 @option{-filter_complex} 选项配置。
+
+简单滤镜图与一个 @emph{输出基本流} 关联；它从 @emph{解码器} 接收要过滤的输入，
+并将过滤后的输出发送给该输出流的 @emph{编码器}。
+
+复杂滤镜图是独立的，不与任何特定流关联。它可以有多个（或零个）输入，
+可能是不同类型（音频或视频），每个输入从解码器或另一个复杂滤镜图的输出接收数据。
+它还有一个或多个输出，馈送给编码器或另一个复杂滤镜图的输入。
+
+@item
+@emph{编码器} 接收原始音频、视频或字幕 @emph{帧} 并将它们编码成
+编码的 @emph{数据包}。编码（压缩）过程通常是 @emph{有损} 的——它降低流质量以使输出更小；
+某些编码器是 @emph{无损} 的，但代价是输出大小大得多。
+视频或音频编码器从某个滤镜图的输出接收输入，
+字幕编码器从解码器接收输入（因为字幕过滤尚不支持）。
+每个编码器都与某个复用器的 @emph{输出基本流} 关联，并将输出发送给该复用器。
+
+@item
+@emph{复用器}（muxer）从编码器（@emph{转码} 路径）或直接从解复用器
+（@emph{流复制} 路径）接收其基本流的编码 @emph{数据包}，
+交错它们（当有多个基本流时），并将结果字节写入输出文件（或管道、网络流等）。
+
+@end itemize
+
+@section 流复制
+@command{ffmpeg} 中最简单的管线是单流 @emph{流复制}，
+即复制一个 @emph{输入基本流} 的数据包而不解码、过滤或编码它们。
+
+流复制对于更改基本流数量、容器格式或修改容器级元数据非常有用。
+由于没有解码或编码，它非常快且没有质量损失。然而，
+由于各种因素（例如目标容器需要的某些信息在源中不可用），
+它可能在某些情况下不起作用。显然也无法应用滤镜，因为滤镜作用于解码后的帧。
+
+@section 转码
+@emph{转码} 是解码流然后重新编码的过程。由于编码往往计算量大，
+且在大多数情况下会降低流质量（即 @emph{有损}），你应该只在需要时转码，
+否则执行流复制。转码的典型原因是：
+
+@itemize
+@item
+应用滤镜——例如调整大小、去隔行或叠加视频；重采样或混音音频；
+
+@item
+你想将流馈送给无法解码原始编解码器的设备。
+@end itemize
+请注意，@command{ffmpeg} 将对所有音频、视频和字幕流进行转码，
+除非你为它们指定 @option{-c copy}。
+
+@section 滤镜处理
+
+转码时，音频和视频流可以在编码之前使用 @emph{简单} 或 @emph{复杂} 滤镜图进行过滤。
+
+@subsection 简单滤镜图
+
+简单滤镜图是那些恰好有一个输入和输出，且类型相同（音频或视频）的滤镜图。
+它们使用每流 @option{-filter} 选项配置（@option{-vf} 和 @option{-af}
+分别是 @option{-filter:v}（视频）和 @option{-filter:a}（音频）的别名）。
+请注意，简单滤镜图绑定到其输出流，因此例如如果你有多个音频流，
+@option{-af} 将为每个创建单独的滤镜图。
+
+@subsection 复杂滤镜图
+
+复杂滤镜图是那些不能简单描述为应用于一个流的线性处理链的滤镜图。
+例如，当图有多个输入和/或输出时，或当输出流类型与输入不同时就是这种情况。
+复杂滤镜图使用 @option{-filter_complex} 选项配置。请注意此选项是全局的，
+因为复杂滤镜图由其性质决定，无法明确关联到单个流或文件。
+
+@anchor{Loopback decoders}
+@section 回环解码器
+虽然解码器通常与解复用器流关联，但也可以创建"回环"解码器，
+解码某个编码器的输出并允许将其反馈回复杂滤镜图。这通过 @code{-dec}
+指令完成，它以应该解码的输出流索引作为参数。每个这样的指令创建一个新的回环解码器，
+以从零开始的连续整数索引。这些索引应在复杂滤镜图链接标签中用于引用回环解码器，
+如 @option{-filter_complex} 的文档中所述。
+
+@c man end DETAILED DESCRIPTION
+
+@anchor{Stream selection}
+@chapter 流选择
+@c man begin STREAM SELECTION
+
+@command{ffmpeg} 提供 @code{-map} 选项用于手动控制每个输出文件中的流选择。
+用户可以跳过 @code{-map} 让 ffmpeg 执行如下所述的自动流选择。
+@code{-vn / -an / -sn / -dn} 选项可用于跳过分别包含视频、音频、字幕和数据流，
+无论是手动映射还是自动选择的，但复杂滤镜图的输出流除外。
+
+@section 描述
+以下小节描述了流选择中涉及的各种规则。后面的示例展示了这些规则在实践中如何应用。
+
+@subsection 自动流选择
+
+在没有为特定输出文件设置任何 map 选项的情况下，ffmpeg 检查输出格式以确定可以包含哪些类型的流，即视频、音频和/或字幕。对于每种可接受的流类型，ffmpeg 将从所有输入中选择一个可用的流。
+
+选择标准如下：
+@itemize
+@item
+对于视频，选择分辨率最高的流，
+@item
+对于音频，选择通道数最多的流，
+@item
+对于字幕，选择找到的第一个字幕流，但有一个注意事项。
+输出格式的默认字幕编码器可以是基于文本的或基于图像的，只会选择相同类型的字幕流。
+@end itemize
+
+在多个相同类型的流评分相同的情况下，选择索引最低的流。
+
+数据或附件流不会被自动选择，只能使用 @code{-map} 包含。
+
+@subsection 手动流选择
+
+使用 @code{-map} 时，只有用户映射的流包含在该输出文件中，
+下面描述的滤镜图输出可能是一个例外。
+
+@subsection 复杂滤镜图
+
+如果有任何具有未标记输出焊盘的复杂滤镜图输出流，它们将被添加到第一个输出文件。
+如果输出格式不支持该流类型，这将导致致命错误。在没有 map 选项的情况下，
+包含这些流会导致跳过其类型的自动流选择。如果存在 map 选项，
+这些滤镜图流将在映射流之外额外包含。
+
+具有标记输出焊盘的复杂滤镜图输出流必须被映射一次且仅一次。
+
+@subsection 流处理
+
+流处理独立于流选择，字幕有一个例外如下所述。流处理通过 @code{-codec} 选项设置，
+该选项针对特定 @emph{输出} 文件中的流。特别地，编解码器选项在流选择过程之后
+由 ffmpeg 应用，因此不影响后者。如果未为某种流类型指定 @code{-codec} 选项，
+ffmpeg 将选择输出文件复用器注册的默认编码器。
+
+字幕有一个例外。如果为输出文件指定了字幕编码器，则会包含找到的任何类型（文本或图像）的第一个字幕流。
+
+@section 示例
+
+以下示例说明了 ffmpeg 流选择方法的行为、特殊情况和限制。
+
+它们假设以下三个输入文件。
+
+@verbatim
+
+input file 'A.avi'
+      stream 0: video 640x360
+      stream 1: audio 2 channels
+
+input file 'B.mp4'
+      stream 0: video 1920x1080
+      stream 1: audio 2 channels
+      stream 2: subtitles (text)
+      stream 3: audio 5.1 channels
+      stream 4: subtitles (text)
+
+input file 'C.mkv'
+      stream 0: video 1280x720
+      stream 1: audio 2 channels
+      stream 2: subtitles (image)
+@end verbatim
+
+@subsubheading 示例：自动流选择
+@example
+ffmpeg -i A.avi -i B.mp4 out1.mkv out2.wav -map 1:a -c:a copy out3.mov
+@end example
+指定了三个输出文件，前两个没有设置 @code{-map} 选项，因此 ffmpeg 将自动为这两个文件选择流。
+
+@file{out1.mkv} 是 Matroska 容器文件，接受视频、音频和字幕流，
+因此 ffmpeg 将尝试分别选择一个。@*
+对于视频，将选择 @file{B.mp4} 的 @code{stream 0}，因为它在所有输入视频流中分辨率最高。@*
+对于音频，将选择 @file{B.mp4} 的 @code{stream 3}，因为它通道数最多。@*
+对于字幕，将选择 @file{B.mp4} 的 @code{stream 2}，因为它是 @file{A.avi} 和 @file{B.mp4} 中的第一个字幕流。
+
+@file{out2.wav} 只接受音频流，因此只选择 @file{B.mp4} 的 @code{stream 3}。
+
+对于 @file{out3.mov}，由于设置了 @code{-map} 选项，不会发生自动流选择。
+@code{-map 1:a} 选项将选择第二个输入 @file{B.mp4} 的所有音频流。
+
+@subsubheading 示例：自动字幕选择
+@example
+ffmpeg -i C.mkv out1.mkv -c:s dvdsub -an out2.mkv
+@end example
+尽管 @file{out1.mkv} 是接受字幕流的 Matroska 容器文件，但只会选择视频和音频流。
+@file{C.mkv} 的字幕流是基于图像的，而 Matroska 复用器的默认字幕编码器是基于文本的，
+因此字幕的转码操作预期会失败，因此不选择该流。然而在 @file{out2.mkv} 中，
+命令中指定了字幕编码器，因此字幕流被选择，连同视频流一起。
+@code{-an} 的存在禁用了 @file{out2.mkv} 的音频流选择。
+
+@subsubheading 示例：未标记的滤镜图输出
+@example
+ffmpeg -i A.avi -i C.mkv -i B.mp4 -filter_complex "overlay" out1.mp4 out2.srt
+@end example
+这里使用 @code{-filter_complex} 选项设置了一个滤镜图，由单个视频滤镜组成。
+@code{overlay} 滤镜需要恰好两个视频输入，但没有指定，
+因此使用前两个可用的视频流——@file{A.avi} 和 @file{C.mkv} 的。
+
+@subsubheading 示例：标记的滤镜图输出
+@example
+ffmpeg -i A.avi -i B.mp4 -i C.mkv -filter_complex "[1:v]hue=s=0[outv];overlay;aresample" \
+       -map '[outv]' -an        out1.mp4 \
+                                out2.mkv \
+       -map '[outv]' -map 1:a:0 out3.mkv
+@end example
+
+上面的命令将失败，因为标记为 @code{[outv]} 的输出焊盘已被映射两次。
+
+@c man end STREAM SELECTION
+
+@chapter 选项
+@c man begin OPTIONS
+
+@include fftools-common-opts.texi
+
+@section 主要选项
+
+@table @option
+
+@item -f @var{fmt} (@emph{input/output})
+强制输入或输出文件格式。通常输入文件的格式会自动检测，
+输出文件的格式会根据文件扩展名猜测，因此大多数情况下不需要此选项。
+
+@item -i @var{url} (@emph{input})
+输入文件 url
+
+@item -y (@emph{global})
+不询问直接覆盖输出文件。
+
+@item -n (@emph{global})
+不覆盖输出文件，如果指定的输出文件已存在则立即退出。
+
+@item -stream_loop @var{number} (@emph{input})
+设置输入流循环的次数。0 表示不循环，-1 表示无限循环。
+
+@item -recast_media (@emph{global})
+允许强制使用与检测到的或解复用器指定的不同媒体类型的解码器。
+对于解码作为数据流复用的媒体数据很有用。
+
+@item -c[:@var{stream_specifier}] @var{codec} (@emph{input/output,per-stream})
+@itemx -codec[:@var{stream_specifier}] @var{codec} (@emph{input/output,per-stream})
+为一个或多个流选择编码器（在输出文件之前使用时）或解码器（在输入文件之前使用时）。
+@var{codec} 是解码器/编码器的名称或特殊值 @code{copy}（仅输出）表示流不进行重新编码。
+
+例如
+@example
+ffmpeg -i INPUT -map 0 -c:v libx264 -c:a copy OUTPUT
+@end example
+用 libx264 编码所有视频流并复制所有音频流。
+
+对于每个流，最后匹配的 @code{c} 选项被应用，所以
+@example
+ffmpeg -i INPUT -map 0 -c copy -c:v:1 libx264 -c:a:137 libvorbis OUTPUT
+@end example
+将复制所有流，除了第二个视频将用 libx264 编码，第 138 个音频将用 libvorbis 编码。
+
+@item -t @var{duration} (@emph{input/output})
+用作输入选项（在 @code{-i} 之前）时，限制从输入文件读取的数据 @var{duration}。
+
+用作输出选项（在输出 url 之前）时，在输出时长达到 @var{duration} 后停止写入。
+
+@var{duration} 必须是时间时长规格，
+参见 @ref{time duration syntax,,ffmpeg-utils(1) 手册中的时间时长章节,ffmpeg-utils}。
+
+-to 和 -t 互斥，-t 有优先级。
+
+@item -to @var{position} (@emph{input/output})
+在 @var{position} 处停止写入输出或读取输入。
+@var{position} 必须是时间时长规格，
+参见 @ref{time duration syntax,,ffmpeg-utils(1) 手册中的时间时长章节,ffmpeg-utils}。
+
+-to 和 -t 互斥，-t 有优先级。
+
+@item -fs @var{limit_size} (@emph{output})
+设置文件大小限制，以字节表示。超过限制后不再写入更多字节块。
+
+@item -ss @var{position} (@emph{input/output})
+用作输入选项（在 @code{-i} 之前）时，在此输入文件中定位到 @var{position}。
+请注意在大多数格式中无法精确定位，因此 @command{ffmpeg} 将定位到
+@var{position} 之前最近的定位点。转码时如果启用了 @option{-accurate_seek}（默认），
+定位点和 @var{position} 之间的额外片段将被解码并丢弃。
+流复制或使用 @option{-noaccurate_seek} 时，将保留该片段。
+
+用作输出选项时，解码但丢弃输入直到时间戳达到 @var{position}。
+
+@item -sseof @var{position} (@emph{input})
+类似 @code{-ss} 选项但相对于"文件末尾"。负值表示文件中更早的位置，0 表示在 EOF。
+
+@item -isync @var{input_index} (@emph{input})
+指定一个输入作为同步源。
+
+@item -itsoffset @var{offset} (@emph{input})
+设置输入时间偏移。偏移量被添加到输入文件的时间戳上。
+指定正偏移意味着相应的流延迟 @var{offset} 中指定的时长。
+
+@item -itsscale @var{scale} (@emph{input,per-stream})
+重新缩放输入时间戳。@var{scale} 应该是浮点数。
+
+@item -timestamp @var{date} (@emph{output})
+设置容器中的录制时间戳。
+
+@item -metadata[:metadata_specifier] @var{key}=@var{value} (@emph{output,per-metadata})
+设置元数据键/值对。
+
+可以给出可选的 @var{metadata_specifier} 来设置流、章节或节目的元数据。
+
+此选项覆盖用 @code{-map_metadata} 设置的元数据。也可以通过使用空值来删除元数据。
+
+例如，设置输出文件的标题：
+@example
+ffmpeg -i in.avi -metadata title="my title" out.flv
+@end example
+
+设置第一个音频流的语言：
+@example
+ffmpeg -i INPUT -metadata:s:a:0 language=eng OUTPUT
+@end example
+
+@item -disposition[:stream_specifier] @var{value} (@emph{output,per-stream})
+设置流的处置标志。
+
+默认情况下，所有处置标志从输入流复制，除非此选项适用的输出流由复杂滤镜图馈送——在这种情况下默认不设置任何处置标志。
+
+@item -program [title=@var{title}:][program_num=@var{program_num}:]st=@var{stream}[:st=@var{stream}...] (@emph{output})
+
+创建具有指定 @var{title}、@var{program_num} 的节目并将指定的 @var{stream} 添加到其中。
+
+@item -stream_group [map=@var{input_file_id}=@var{stream_group}][type=@var{type}:]st=@var{stream}[:st=@var{stream}][:stg=@var{stream_group}][:id=@var{stream_group_id}...] (@emph{output})
+
+创建指定 @var{type} 和 @var{stream_group_id} 的流组，或通过 @var{map} 映射输入组，
+添加指定的 @var{stream} 和/或先前定义的 @var{stream_group} 到其中。
+
+@item -target @var{type} (@emph{output})
+指定目标文件类型（@code{vcd}、@code{svcd}、@code{dvd}、@code{dv}、@code{dv50}）。
+@var{type} 可以用 @code{pal-}、@code{ntsc-} 或 @code{film-} 为前缀以使用相应的标准。
+所有格式选项（比特率、编解码器、缓冲区大小）将自动设置。
+
+@item -dn (@emph{input/output})
+作为输入选项，阻止文件的所有数据流被过滤或自动选择或映射到任何输出。
+
+作为输出选项，禁用数据录制，即自动选择或映射任何数据流。
+
+@item -frames[:@var{stream_specifier}] @var{framecount} (@emph{output,per-stream})
+在写入 @var{framecount} 帧后停止写入该流。
+
+@item -q[:@var{stream_specifier}] @var{q} (@emph{output,per-stream})
+@itemx -qscale[:@var{stream_specifier}] @var{q} (@emph{output,per-stream})
+使用固定质量量化（VBR）。@var{q}/@var{qscale} 的含义取决于编解码器。
+
+@anchor{filter_option}
+@item -filter[:@var{stream_specifier}] @var{filtergraph} (@emph{output,per-stream})
+创建由 @var{filtergraph} 指定的滤镜图并用于过滤流。
+
+@item -reinit_filter[:@var{stream_specifier}] @var{integer} (@emph{input,per-stream})
+此布尔选项确定当输入帧参数在流中途更改时，馈送此流的滤镜图是否重新初始化。
+
+@item -filter_threads @var{nb_threads} (@emph{global})
+定义用于处理滤镜管线的线程数。默认为可用 CPU 数量。
+
+@item -pre[:@var{stream_specifier}] @var{preset_name} (@emph{output,per-stream})
+为匹配的流指定预设。
+
+@item -stats (@emph{global})
+将编码进度/统计信息记录为 "info" 级日志。默认开启，要显式禁用需要指定 @code{-nostats}。
+
+@item -stats_period @var{time} (@emph{global})
+设置编码进度/统计信息更新的周期。默认为 0.5 秒。
+
+@item -progress @var{url} (@emph{global})
+发送程序友好的进度信息到 @var{url}。
+
+@anchor{stdin option}
+@item -stdin
+启用标准输入上的交互。默认开启，除非标准输入被用作输入。
+
+@item -debug_ts (@emph{global})
+打印时间戳/延迟信息。默认关闭。此选项主要用于测试和调试目的。
+
+@item -attach @var{filename} (@emph{output})
+向输出文件添加附件。某些格式（如用于渲染字幕的字体的 Matroska）支持此功能。
+
+@item -dump_attachment[:@var{stream_specifier}] @var{filename} (@emph{input,per-stream})
+将匹配的附件流提取到名为 @var{filename} 的文件中。
+@end table
+
+@section 视频选项
+
+@table @option
+@item -vframes @var{number} (@emph{output})
+设置要输出的视频帧数。这是 @code{-frames:v} 的过时别名。
+@item -r[:@var{stream_specifier}] @var{fps} (@emph{input/output,per-stream})
+设置帧率（Hz 值、分数或缩写）。
+
+@item -fpsmax[:@var{stream_specifier}] @var{fps} (@emph{output,per-stream})
+设置最大帧率。
+
+@item -s[:@var{stream_specifier}] @var{size} (@emph{input/output,per-stream})
+设置帧大小。格式为 @samp{wxh}（默认与源相同）。
+
+@item -aspect[:@var{stream_specifier}] @var{aspect} (@emph{output,per-stream})
+设置视频显示纵横比。
+
+@item -display_rotation[:@var{stream_specifier}] @var{rotation} (@emph{input,per-stream})
+设置视频旋转元数据。
+
+@item -vn (@emph{input/output})
+作为输入选项，阻止文件的所有视频流。作为输出选项，禁用视频录制。
+
+@item -vcodec @var{codec} (@emph{output})
+设置视频编解码器。这是 @code{-codec:v} 的别名。
+
+@item -pass[:@var{stream_specifier}] @var{n} (@emph{output,per-stream})
+选择通道号（1 或 2）。用于两通道视频编码。
+
+@item -passlogfile[:@var{stream_specifier}] @var{prefix} (@emph{output,per-stream})
+设置两通道日志文件名称前缀。
+
+@item -vf @var{filtergraph} (@emph{output})
+创建并使用滤镜图过滤流。这是 @code{-filter:v} 的别名。
+
+@item -autorotate
+根据文件元数据自动旋转视频。默认启用。
+
+@item -autoscale
+根据第一帧的分辨率自动缩放视频。默认启用。
+@end table
+
+@section 高级视频选项
+
+@table @option
+@item -pix_fmt[:@var{stream_specifier}] @var{format} (@emph{input/output,per-stream})
+设置像素格式。使用 @code{-pix_fmts} 显示所有支持的像素格式。
+
+@item -sws_flags @var{flags} (@emph{input/output})
+设置 libswscale 库的默认标志。
+
+@item -rc_override[:@var{stream_specifier}] @var{override} (@emph{output,per-stream})
+特定间隔的码率控制覆盖。
+
+@item -vstats
+将视频编码统计信息转储到 @file{vstats_HHMMSS.log}。
+
+@item -vstats_file @var{file}
+将视频编码统计信息转储到 @var{file}。
+
+@item -vstats_version @var{file}
+指定使用哪个版本的 vstats 格式。默认为 @code{2}。
+
+@item -vtag @var{fourcc/tag} (@emph{output})
+强制视频标签/fourcc。这是 @code{-tag:v} 的别名。
+
+@item -force_key_frames[:@var{stream_specifier}] @var{time}[,@var{time}...] (@emph{output,per-stream})
+@item -force_key_frames[:@var{stream_specifier}] expr:@var{expr} (@emph{output,per-stream})
+@item -force_key_frames[:@var{stream_specifier}] source (@emph{output,per-stream})
+@item -force_key_frames[:@var{stream_specifier}] scd_metadata (@emph{output,per-stream})
+
+@var{force_key_frames} 可以接受以下形式的参数：
+
+@table @option
+
+@item @var{time}[,@var{time}...]
+如果参数由时间戳组成，ffmpeg 将按编码器时间基将指定时间四舍五入到最近的输出时间戳，
+并在时间戳等于或大于计算值的第一帧处强制关键帧。
+
+@item expr:@var{expr}
+如果参数以 @code{expr:} 为前缀，字符串 @var{expr} 被解释为表达式并对每帧求值。
+非零值时强制关键帧。
+
+@item source
+如果参数是 @code{source}，当当前编码帧在源中标记为关键帧时，ffmpeg 将强制关键帧。
+
+@item scd_metadata
+如果参数是 @code{scd_metadata}，当当前帧包含键为 @code{lavfi.scd.time} 的元数据条目时，
+ffmpeg 将强制关键帧。
+
+@end table
+
+请注意，强制过多关键帧对某些编码器的前瞻算法非常有害。
+
+@item -apply_cropping[:@var{stream_specifier}] @var{source} (@emph{input,per-stream})
+解码后根据文件元数据自动裁剪视频。默认为 @emph{all}。
+
+@item -copyinkf[:@var{stream_specifier}] (@emph{output,per-stream})
+流复制时，同时复制开头的非关键帧。
+
+@item -init_hw_device @var{type}[=@var{name}][:@var{device}[,@var{key=value}...]]
+初始化一个名为 @var{name} 的 @var{type} 类型的新硬件设备。
+
+@item -init_hw_device @var{type}[=@var{name}]@@@var{source}
+初始化一个新硬件设备，从名为 @var{source} 的现有设备派生。
+
+@item -init_hw_device list
+列出此构建支持的所有硬件设备类型。
+
+@item -filter_hw_device @var{name}
+将名为 @var{name} 的硬件设备传递给所有滤镜图中的所有滤镜。
+
+@item -hwaccel[:@var{stream_specifier}] @var{hwaccel} (@emph{input,per-stream})
+使用硬件加速解码匹配的流。允许的 @var{hwaccel} 值为：
+@table @option
+@item none
+不使用任何硬件加速（默认）。
+@item auto
+自动选择硬件加速方法。
+@item vdpau
+使用 VDPAU 硬件加速。
+@item dxva2
+使用 DXVA2 硬件加速。
+@item d3d11va
+使用 D3D11VA 硬件加速。
+@item vaapi
+使用 VAAPI 硬件加速。
+@item qsv
+使用 Intel QuickSync Video 加速进行视频转码。
+@item videotoolbox
+使用 Video Toolbox 硬件加速。
+@end table
+
+@item -hwaccel_device[:@var{stream_specifier}] @var{hwaccel_device} (@emph{input,per-stream})
+选择用于硬件加速的设备。
+
+@item -hwaccels
+列出此构建启用的所有硬件加速组件。
+
+@item -fix_sub_duration_heartbeat[:@var{stream_specifier}]
+设置特定输出视频流作为心跳流，用于在接收到随机访问数据包时分割并推送当前正在处理的字幕。
+
+@end table
+
+@section 音频选项
+
+@table @option
+@item -aframes @var{number} (@emph{output})
+设置要输出的音频帧数。这是 @code{-frames:a} 的过时别名。
+@item -ar[:@var{stream_specifier}] @var{freq} (@emph{input/output,per-stream})
+设置音频采样频率。
+@item -aq @var{q} (@emph{output})
+设置音频质量（编解码器特定，VBR）。这是 -q:a 的别名。
+@item -ac[:@var{stream_specifier}] @var{channels} (@emph{input/output,per-stream})
+设置音频通道数。
+@item -an (@emph{input/output})
+作为输入选项，阻止文件的所有音频流。作为输出选项，禁用音频录制。
+@item -acodec @var{codec} (@emph{input/output})
+设置音频编解码器。这是 @code{-codec:a} 的别名。
+@item -sample_fmt[:@var{stream_specifier}] @var{sample_fmt} (@emph{output,per-stream})
+设置音频采样格式。使用 @code{-sample_fmts} 获取支持的列表。
+
+@item -af @var{filtergraph} (@emph{output})
+这是 @code{-filter:a} 的别名，参见 @ref{filter_option,,-filter 选项}。
+@end table
+
+@section 高级音频选项
+
+@table @option
+@item -atag @var{fourcc/tag} (@emph{output})
+强制音频标签/fourcc。这是 @code{-tag:a} 的别名。
+@item -channel_layout[:@var{stream_specifier}] @var{layout} (@emph{input/output,per-stream})
+设置音频通道布局。
+@item -guess_layout_max @var{channels} (@emph{input,per-stream})
+如果某些输入通道布局未知，尝试只猜测最多对应指定通道数的布局。
+@end table
+
+@section 字幕选项
+
+@table @option
+@item -scodec @var{codec} (@emph{input/output})
+设置字幕编解码器。这是 @code{-codec:s} 的别名。
+@item -sn (@emph{input/output})
+作为输入选项，阻止文件的所有字幕流。作为输出选项，禁用字幕录制。
+@end table
+
+@section 高级字幕选项
+
+@table @option
+@item -fix_sub_duration
+修正字幕时长。对于每个字幕，等待同一流中的下一个数据包并调整第一个的时长以避免重叠。
+
+@item -canvas_size @var{size}
+设置用于渲染字幕的画布大小。
+@end table
+
+@section 高级选项
+
+@table @option
+@item -map [-]@var{input_file_id}[:@var{stream_specifier}][:@var{view_specifier}][:?] | @var{[linklabel]} (@emph{output})
+
+在输出文件中创建一个或多个流。此选项有两种形式指定数据源：
+第一种从某个输入文件（用 @code{-i} 指定）选择一个或多个流，
+第二种从某个复杂滤镜图（用 @code{-filter_complex} 指定）获取输出。
+
+在第一种形式中，为索引为 @var{input_file_id} 的输入文件的每个流创建一个输出流。
+
+@code{-} 字符在流标识符前创建"负"映射。它禁用已创建映射中的匹配流。
+
+此选项可指定多次，每次向输出文件添加更多流。
+
+示例：
+
+@table @emph
+
+@item 映射所有内容
+要将第一个输入文件的所有流映射到输出
+@example
+ffmpeg -i INPUT -map 0 output
+@end example
+
+@item 选择特定流
+@example
+ffmpeg -i INPUT -map 0:1 out.wav
+@end example
+将 @file{INPUT} 中的第二个输入流映射到 @file{out.wav} 中的（唯一）输出流。
+
+@item 创建多个流
+@example
+ffmpeg -i a.mov -i b.mov -c copy -map 0:2 -map 1:6 out.mov
+@end example
+
+@item 负映射
+@example
+ffmpeg -i INPUT -map 0 -map -0:a:1 OUTPUT
+@end example
+
+@item 可选映射
+@example
+ffmpeg -i INPUT -map 0:v -map 0:a? OUTPUT
+@end example
+
+@item 按语言映射
+@example
+ffmpeg -i INPUT -map 0:m:language:eng OUTPUT
+@end example
+
+@end table
+
+@item -ignore_unknown
+忽略未知类型的输入流，而不是在尝试复制时失败。
+
+@item -copy_unknown
+允许复制未知类型的输入流。
+
+@item -map_metadata[:@var{metadata_spec_out}] @var{infile}[:@var{metadata_spec_in}] (@emph{output,per-metadata})
+从 @var{infile} 设置下一个输出文件的元数据信息。
+
+@item -map_chapters @var{input_file_index} (@emph{output})
+从索引为 @var{input_file_index} 的输入文件复制章节到下一个输出文件。
+
+@item -benchmark (@emph{global})
+在编码结束时显示基准测试信息。
+@item -benchmark_all (@emph{global})
+在编码过程中显示基准测试信息。
+@item -timelimit @var{duration} (@emph{global})
+在 ffmpeg 运行了 @var{duration} 秒 CPU 用户时间后退出。
+@item -dump (@emph{global})
+将每个输入数据包转储到标准错误输出。
+@item -hex (@emph{global})
+转储数据包时，也转储有效载荷。
+@item -readrate @var{speed} (@emph{input})
+限制输入读取速度。主要用于模拟采集设备或实时输入流。
+@item -re (@emph{input})
+以原始帧率读取输入。等同于 @code{-readrate 1}。
+@item -readrate_initial_burst @var{seconds}
+设置初始读取突发时间。
+
+@item -vsync @var{parameter} (@emph{global})
+@itemx -fps_mode[:@var{stream_specifier}] @var{parameter} (@emph{output,per-stream})
+设置视频同步方法/帧率模式。
+
+@table @option
+@item passthrough (0)
+每帧及其时间戳从解复用器传递到复用器。
+@item cfr (1)
+帧将被复制和丢弃以实现请求的恒定帧率。
+@item vfr (2)
+帧连同时间戳一起传递或被丢弃以防止两帧具有相同的时间戳。
+@item auto (-1)
+根据复用器能力在 cfr 和 vfr 之间选择。这是默认方法。
+@end table
+
+@item -frame_drop_threshold @var{parameter}
+帧丢弃阈值，指定视频帧能落后多少才被丢弃。
+
+@item -apad @var{parameters} (@emph{output,per-stream})
+填充输出音频流。
+
+@item -copyts
+不处理输入时间戳，保持其值不尝试净化。
+
+@item -start_at_zero
+与 @option{copyts} 一起使用时，移动输入时间戳使其从零开始。
+
+@item -copytb @var{mode}
+指定流复制时如何设置编码器时间基。
+
+@item -enc_time_base[:@var{stream_specifier}] @var{timebase} (@emph{output,per-stream})
+设置编码器时间基。
+
+@item -bitexact (@emph{input/output})
+启用位精确模式。
+@item -shortest (@emph{output})
+当最短的输出流结束时完成编码。
+
+@item -shortest_buf_duration @var{duration} (@emph{output})
+控制用于 @code{-shortest} 选项的最大缓冲帧时长（秒）。默认值为 10 秒。
+
+@item -dts_delta_threshold @var{threshold}
+时间戳不连续性增量阈值。默认值为 10。
+
+@item -dts_error_threshold @var{threshold}
+时间戳错误增量阈值。默认值为 @code{3600*30}（30 小时）。
+
+@item -muxdelay @var{seconds} (@emph{output})
+设置最大解复用-解码延迟。
+@item -muxpreload @var{seconds} (@emph{output})
+设置初始解复用-解码延迟。
+@item -streamid @var{output-stream-index}:@var{new-value} (@emph{output})
+将新的 stream-id 值分配给输出流。
+
+@item -bsf[:@var{stream_specifier}] @var{bitstream_filters} (@emph{input/output,per-stream})
+对匹配的流应用比特流滤镜。
+
+@item -tag[:@var{stream_specifier}] @var{codec_tag} (@emph{input/output,per-stream})
+为匹配的流强制标签/fourcc。
+
+@item -timecode @var{hh}:@var{mm}:@var{ss}SEP@var{ff}
+指定用于写入的时间码。
+
+@anchor{filter_complex_option}
+@item -filter_complex @var{filtergraph} (@emph{global})
+定义复杂滤镜图，即具有任意数量输入和/或输出的滤镜图。
+
+复杂滤镜图的输入可以来自不同的源类型：
+@itemize
+@item
+要连接输入流，使用 @code{[file_index:stream_specifier]}（与 @option{-map} 语法相同）。
+@item
+要连接回环解码器，使用 [dec:@var{dec_idx}]。
+@item
+要连接另一个复杂滤镜图的输出，使用其链接标签。
+@end itemize
+
+未标记的输入将连接到匹配类型的第一个未使用的输入流。
+
+输出链接标签通过 @option{-map} 引用。未标记的输出被添加到第一个输出文件。
+
+例如，要在视频上叠加图像
+@example
+ffmpeg -i video.mkv -i image.png -filter_complex '[0:v][1:v]overlay[out]' -map
+'[out]' out.mkv
+@end example
+
+使用 lavfi @code{color} 源生成 5 秒纯红视频：
+@example
+ffmpeg -filter_complex 'color=c=red' -t 5 out.mkv
+@end example
+
+@item -filter_complex_threads @var{nb_threads} (@emph{global})
+定义用于处理 filter_complex 图的线程数。
+
+@item -lavfi @var{filtergraph} (@emph{global})
+定义复杂滤镜图。等同于 @option{-filter_complex}。
+
+@item -accurate_seek (@emph{input})
+启用或禁用输入文件的精确定位。默认启用。
+
+@item -seek_timestamp (@emph{input})
+启用或禁用输入文件中按时间戳定位。默认禁用。
+
+@item -thread_queue_size @var{size} (@emph{input/output})
+对于输入，设置读取文件或设备时的最大排队数据包数。
+对于输出，指定可以排队到每个复用线程的最大数据包数。
+
+@item -sdp_file @var{file} (@emph{global})
+将输出流的 sdp 信息打印到 @var{file}。
+
+@item -discard (@emph{input})
+允许丢弃特定流或流中的帧。
+
+@table @option
+@item none
+不丢弃帧。
+@item default
+默认，不丢弃帧。
+@item noref
+丢弃所有非参考帧。
+@item bidir
+丢弃所有双向帧。
+@item nokey
+丢弃除关键帧外的所有帧。
+@item all
+丢弃所有帧。
+@end table
+
+@item -abort_on @var{flags} (@emph{global})
+在各种条件下停止并中止。
+
+@item -max_error_rate (@emph{global})
+设置所有输入的解码帧失败率，超过此阈值 ffmpeg 将返回退出码 69。默认为 2/3。
+
+@item -xerror (@emph{global})
+出错时停止并退出。
+
+@item -max_muxing_queue_size @var{packets} (@emph{output,per-stream})
+设置匹配输出流的复用缓冲区大小（数据包数）。
+
+@item -muxing_queue_data_threshold @var{bytes} (@emph{output,per-stream})
+复用队列大小不被计入的最小阈值。默认每个流 50 兆字节。
+
+@item -auto_conversion_filters (@emph{global})
+启用在所有滤镜图中自动插入格式转换滤镜。默认开启。
+
+@item -bits_per_raw_sample[:@var{stream_specifier}] @var{value} (@emph{output,per-stream})
+声明给定输出流中每个原始采样的位数。
+
+@anchor{stats_enc_options}
+@item -stats_enc_pre[:@var{stream_specifier}] @var{path} (@emph{output,per-stream})
+@item -stats_enc_post[:@var{stream_specifier}] @var{path} (@emph{output,per-stream})
+@item -stats_mux_pre[:@var{stream_specifier}] @var{path} (@emph{output,per-stream})
+将匹配流的每帧编码信息写入 @var{path} 给定的文件。
+
+@item -stats_enc_pre_fmt[:@var{stream_specifier}] @var{format_spec} (@emph{output,per-stream})
+@item -stats_enc_post_fmt[:@var{stream_specifier}] @var{format_spec} (@emph{output,per-stream})
+@item -stats_mux_pre_fmt[:@var{stream_specifier}] @var{format_spec} (@emph{output,per-stream})
+指定编码统计信息行的格式。
+
+@end table
+
+@section 预设文件
+预设文件包含一系列 @var{option}=@var{value} 对，每行一个，指定一系列在命令行上指定会很繁琐的选项。
+
+有两种类型的预设文件：ffpreset 和 avpreset 文件。
+
+@subsection ffpreset 文件
+ffpreset 文件通过 @code{vpre}、@code{apre}、@code{spre} 和 @code{fpre} 选项指定。
+
+@subsection avpreset 文件
+avpreset 文件通过 @code{pre} 选项指定。它们类似于 ffpreset 文件，但只允许编码器特定的选项。
+
+@anchor{vstats_file_format}
+@section vstats 文件格式
+@code{-vstats} 和 @code{-vstats_file} 选项启用生成包含生成视频输出统计信息的文件。
+
+@c man end OPTIONS
+
+@chapter 示例
+@c man begin EXAMPLES
+
+@section 视频和音频采集
+
+如果指定输入格式和设备，ffmpeg 可以直接采集视频和音频。
+
+@example
+ffmpeg -f oss -i /dev/dsp -f video4linux2 -i /dev/video0 /tmp/out.mpg
+@end example
+
+或使用 ALSA 音频源（单声道输入，声卡 id 1）代替 OSS：
+@example
+ffmpeg -f alsa -ac 1 -i hw:1 -f video4linux2 -i /dev/video0 /tmp/out.mpg
+@end example
+
+@section X11 采集
+
+通过以下方式使用 ffmpeg 采集 X11 显示
+
+@example
+ffmpeg -f x11grab -video_size cif -framerate 25 -i :0.0 /tmp/out.mpg
+@end example
+
+@section 视频和音频文件格式转换
+
+任何支持的文件格式和协议都可以作为 ffmpeg 的输入：
+
+示例：
+@itemize
+@item
+可以使用 YUV 文件作为输入：
+@example
+ffmpeg -i /tmp/test%d.Y /tmp/out.mpg
+@end example
+
+@item
+可以从原始 YUV420P 文件输入：
+@example
+ffmpeg -i /tmp/test.yuv /tmp/out.avi
+@end example
+
+@item
+可以输出到原始 YUV420P 文件：
+@example
+ffmpeg -i mydivx.avi hugefile.yuv
+@end example
+
+@item
+可以设置多个输入文件和输出文件：
+@example
+ffmpeg -i /tmp/a.wav -s 640x480 -i /tmp/a.yuv /tmp/a.mpg
+@end example
+
+@item
+也可以同时进行音频和视频转换：
+@example
+ffmpeg -i /tmp/a.wav -ar 22050 /tmp/a.mp2
+@end example
+
+@item
+可以同时编码为多种格式并定义输入流到输出流的映射：
+@example
+ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k /tmp/a.mp2 -map 0:a -b:a 128k /tmp/b.mp2
+@end example
+
+@item
+可以转码解密的 VOB：
+@example
+ffmpeg -i snatch_1.vob -f avi -c:v mpeg4 -b:v 800k -g 300 -bf 2 -c:a libmp3lame -b:a 128k snatch.avi
+@end example
+
+@item
+可以从视频中提取图像，或从许多图像创建视频：
+
+提取图像：
+@example
+ffmpeg -i foo.avi -r 1 -s WxH -f image2 foo-%03d.jpeg
+@end example
+
+从图像创建视频：
+@example
+ffmpeg -f image2 -framerate 12 -i foo-%03d.jpeg -s WxH foo.avi
+@end example
+
+@item
+可以在输出中放入多个相同类型的流：
+@example
+ffmpeg -i test1.avi -i test2.avi -map 1:1 -map 1:0 -map 0:1 -map 0:0 -c copy -y test12.nut
+@end example
+
+@item
+强制 CBR 视频输出：
+@example
+ffmpeg -i myfile.avi -b 4000k -minrate 4000k -maxrate 4000k -bufsize 1835k out.m2v
+@end example
+
+@end itemize
+@c man end EXAMPLES
+
+@include config.texi
+@ifset config-all
+@ifset config-avutil
+@include utils.texi
+@end ifset
+@ifset config-avcodec
+@include codecs.texi
+@include bitstream_filters.texi
+@end ifset
+@ifset config-avformat
+@include formats.texi
+@include protocols.texi
+@end ifset
+@ifset config-avdevice
+@include devices.texi
+@end ifset
+@ifset config-swresample
+@include resampler.texi
+@end ifset
+@ifset config-swscale
+@include scaler.texi
+@end ifset
+@ifset config-avfilter
+@include filters.texi
+@end ifset
+@include general_contents.texi
+@end ifset
+
+@chapter 另见
+
+@ifhtml
+@ifset config-all
+@url{ffmpeg.html,ffmpeg}
+@end ifset
+@ifset config-not-all
+@url{ffmpeg-all.html,ffmpeg-all},
+@end ifset
+@url{ffplay.html,ffplay}, @url{ffprobe.html,ffprobe},
+@url{ffmpeg-utils.html,ffmpeg-utils},
+@url{ffmpeg-scaler.html,ffmpeg-scaler},
+@url{ffmpeg-resampler.html,ffmpeg-resampler},
+@url{ffmpeg-codecs.html,ffmpeg-codecs},
+@url{ffmpeg-bitstream-filters.html,ffmpeg-bitstream-filters},
+@url{ffmpeg-formats.html,ffmpeg-formats},
+@url{ffmpeg-devices.html,ffmpeg-devices},
+@url{ffmpeg-protocols.html,ffmpeg-protocols},
+@url{ffmpeg-filters.html,ffmpeg-filters}
+@end ifhtml
+
+@ifnothtml
+@ifset config-all
+ffmpeg(1),
+@end ifset
+@ifset config-not-all
+ffmpeg-all(1),
+@end ifset
+ffplay(1), ffprobe(1),
+ffmpeg-utils(1), ffmpeg-scaler(1), ffmpeg-resampler(1),
+ffmpeg-codecs(1), ffmpeg-bitstream-filters(1), ffmpeg-formats(1),
+ffmpeg-devices(1), ffmpeg-protocols(1), ffmpeg-filters(1)
+@end ifnothtml
+
+@include authors.texi
+
+@ignore
+
+@setfilename ffmpeg
+@settitle ffmpeg 媒体转换器
+
+@end ignore
+
+@bye

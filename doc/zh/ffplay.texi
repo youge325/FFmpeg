@@ -1,0 +1,331 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle ffplay 文档
+@titlepage
+@center @titlefont{ffplay 文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 概要
+
+ffplay [@var{options}] [@file{input_url}]
+
+@chapter 描述
+@c man begin DESCRIPTION
+
+FFplay 是一个使用 FFmpeg 库和 SDL 库的非常简洁且可移植的媒体播放器。
+它主要用作各种 FFmpeg API 的测试平台。
+@c man end
+
+@chapter 选项
+@c man begin OPTIONS
+
+@include fftools-common-opts.texi
+
+@section 主要选项
+
+@table @option
+@item -x @var{width}
+强制显示宽度。
+@item -y @var{height}
+强制显示高度。
+@item -fs
+以全屏模式启动。
+@item -an
+禁用音频。
+@item -vn
+禁用视频。
+@item -sn
+禁用字幕。
+@item -ss @var{pos}
+定位到 @var{pos}。请注意，在大多数格式中无法精确定位，
+因此 @command{ffplay} 将定位到最接近 @var{pos} 的定位点。
+
+@var{pos} 必须是时间时长规格，
+参见 @ref{time duration syntax,,ffmpeg-utils(1) 手册中的时间时长章节,ffmpeg-utils}。
+@item -t @var{duration}
+播放 @var{duration} 秒的音频/视频。
+
+@var{duration} 必须是时间时长规格，
+参见 @ref{time duration syntax,,ffmpeg-utils(1) 手册中的时间时长章节,ffmpeg-utils}。
+@item -bytes
+按字节定位。
+@item -seek_interval
+设置使用左/右键定位的自定义间隔（秒）。默认为 10 秒。
+@item -nodisp
+禁用图形显示。
+@item -noborder
+无边框窗口。
+@item -alwaysontop
+窗口始终置顶。可用于：X11 且 SDL >= 2.0.5，Windows 且 SDL >= 2.0.6。
+@item -volume
+设置启动音量。0 表示静音，100 表示不增减音量。
+负值视为 0，超过 100 的值视为 100。
+@item -f @var{fmt}
+强制格式。
+@item -window_title @var{title}
+设置窗口标题（默认为输入文件名）。
+@item -left @var{title}
+设置窗口左侧的 x 位置（默认为居中窗口）。
+@item -top @var{title}
+设置窗口顶部的 y 位置（默认为居中窗口）。
+@item -loop @var{number}
+循环播放影片 <number> 次。0 表示永远循环。
+@item -showmode @var{mode}
+设置要使用的显示模式。
+@var{mode} 的可用值为：
+@table @samp
+@item 0, video
+显示视频
+@item 1, waves
+显示音频波形
+@item 2, rdft
+使用 RDFT（（逆）实数离散傅里叶变换）显示音频频带
+@end table
+
+默认值为 "video"，如果视频不存在或无法播放，
+则自动选择 "rdft"。
+
+您可以通过按 @key{w} 键交互式地在可用显示模式之间循环切换。
+
+@item -vf @var{filtergraph}
+创建由 @var{filtergraph} 指定的滤镜图并用于过滤视频流。
+
+@var{filtergraph} 是要应用于流的滤镜图描述，
+必须具有单个视频输入和单个视频输出。在滤镜图中，
+输入关联到标签 @code{in}，输出关联到标签 @code{out}。
+有关滤镜图语法的更多信息，请参阅 ffmpeg-filters 手册。
+
+您可以多次指定此参数，并通过按 @key{w} 键在指定的
+滤镜图和显示模式之间循环切换。
+
+@item -af @var{filtergraph}
+@var{filtergraph} 是要应用于输入音频的滤镜图描述。
+使用 "-filters" 选项显示所有可用的滤镜（包括源和接收器）。
+
+@item -i @var{input_url}
+读取 @var{input_url}。
+@end table
+
+@section 高级选项
+@table @option
+@item -stats
+打印多项播放统计信息，特别是显示流时长、编解码器参数、
+流中的当前位置以及音视频同步漂移。默认显示，除非日志级别低于 @code{info}。
+可以通过手动指定此选项来强制显示。要禁用它，需要指定 @code{-nostats}。
+
+@item -fast
+非标准兼容的优化。
+@item -genpts
+生成 pts。
+@item -sync @var{type}
+将主时钟设置为音频（@code{type=audio}）、视频
+（@code{type=video}）或外部（@code{type=ext}）。默认为音频。
+主时钟用于控制音视频同步。大多数媒体播放器使用音频作为主时钟，
+但在某些情况下（流媒体或高质量广播）需要更改。此选项主要用于调试目的。
+@item -ast @var{audio_stream_specifier}
+使用给定的流指定符选择所需的音频流。流指定符在
+@ref{Stream specifiers} 章节中描述。如果未指定此选项，
+则在已选定视频流的节目中选择"最佳"音频流。
+@item -vst @var{video_stream_specifier}
+使用给定的流指定符选择所需的视频流。流指定符在
+@ref{Stream specifiers} 章节中描述。如果未指定此选项，
+则选择"最佳"视频流。
+@item -sst @var{subtitle_stream_specifier}
+使用给定的流指定符选择所需的字幕流。流指定符在
+@ref{Stream specifiers} 章节中描述。如果未指定此选项，
+则在已选定视频或音频流的节目中选择"最佳"字幕流。
+@item -autoexit
+视频播放完毕时退出。
+@item -exitonkeydown
+按下任意键时退出。
+@item -exitonmousedown
+按下任意鼠标按钮时退出。
+
+@item -codec:@var{media_specifier} @var{codec_name}
+为由 @var{media_specifier} 标识的流强制使用特定的解码器实现，
+@var{media_specifier} 可取值 @code{a}（音频）、
+@code{v}（视频）和 @code{s}（字幕）。
+
+@item -acodec @var{codec_name}
+强制使用特定的音频解码器。
+
+@item -vcodec @var{codec_name}
+强制使用特定的视频解码器。
+
+@item -scodec @var{codec_name}
+强制使用特定的字幕解码器。
+
+@item -autorotate
+根据文件元数据自动旋转视频。默认启用，
+使用 @option{-noautorotate} 禁用。
+
+@item -framedrop
+如果视频不同步则丢帧。如果主时钟未设置为视频则默认启用。
+使用此选项可为所有主时钟源启用丢帧，使用 @option{-noframedrop} 禁用。
+
+@item -infbuf
+不限制输入缓冲区大小，尽快从输入读取尽可能多的数据。
+对于实时流默认启用，因为如果不及时读取数据可能会丢弃。
+使用此选项可为所有输入启用无限缓冲，使用 @option{-noinfbuf} 禁用。
+
+@item -filter_threads @var{nb_threads}
+定义用于处理滤镜管线的线程数。每个管线将生成一个具有此数量线程的线程池，
+可用于并行处理。默认值为 0，即线程数将由可用 CPU 数量决定。
+
+@item -enable_vulkan
+使用 vulkan 渲染器而非 SDL 内置渲染器。依赖 libplacebo。
+
+@item -vulkan_params
+
+使用由 ":" 分隔的 @var{key}=@var{value} 对列表进行 Vulkan 配置。
+
+@item -hwaccel
+使用硬件加速解码。启用此选项将自动启用 vulkan 渲染器。
+
+@item -video_bg @var{pattern}
+设置用于透明视频的视频背景图案。对于纯色图案，您可以使用
+@ref{color syntax,,ffmpeg-utils(1) 手册中的颜色章节,ffmpeg-utils}
+中指定的颜色名称或颜色代码。
+您也可以使用特殊的 @code{tiles} 关键字来使用棋盘格样式图案。这也是默认值。
+@code{none} 图案在不进行 alpha 混合的情况下进行渲染，有效地忽略 alpha 通道。
+
+@end table
+
+@section 播放时操作
+
+@table @key
+@item q, ESC
+退出。
+
+@item f
+切换全屏。
+
+@item p, SPC
+暂停。
+
+@item m
+切换静音。
+
+@item 9, 0
+@item /, *
+分别降低和增加音量。
+
+@item a
+在当前节目中循环切换音频通道。
+
+@item v
+循环切换视频通道。
+
+@item t
+在当前节目中循环切换字幕通道。
+
+@item c
+循环切换节目。
+
+@item w
+循环切换视频滤镜或显示模式。
+
+@item s
+步进到下一帧。
+
+如果流尚未暂停则先暂停，步进到下一个视频帧，然后暂停。
+
+@item left/right
+向后/向前定位 10 秒。
+
+@item down/up
+向后/向前定位 1 分钟。
+
+@item page down/page up
+定位到上一个/下一个章节。
+或者如果没有章节，
+向后/向前定位 10 分钟。
+
+@item 鼠标右键点击
+定位到文件中与宽度比例对应的百分比位置。
+
+@item 鼠标左键双击
+切换全屏。
+
+@end table
+
+@c man end
+
+@include config.texi
+@ifset config-all
+@set config-readonly
+@ifset config-avutil
+@include utils.texi
+@end ifset
+@ifset config-avcodec
+@include codecs.texi
+@include bitstream_filters.texi
+@end ifset
+@ifset config-avformat
+@include formats.texi
+@include protocols.texi
+@end ifset
+@ifset config-avdevice
+@include devices.texi
+@end ifset
+@ifset config-swresample
+@include resampler.texi
+@end ifset
+@ifset config-swscale
+@include scaler.texi
+@end ifset
+@ifset config-avfilter
+@include filters.texi
+@end ifset
+@include general_contents.texi
+@end ifset
+
+@chapter 另见
+
+@ifhtml
+@ifset config-all
+@url{ffplay.html,ffplay},
+@end ifset
+@ifset config-not-all
+@url{ffplay-all.html,ffplay-all},
+@end ifset
+@url{ffmpeg.html,ffmpeg}, @url{ffprobe.html,ffprobe},
+@url{ffmpeg-utils.html,ffmpeg-utils},
+@url{ffmpeg-scaler.html,ffmpeg-scaler},
+@url{ffmpeg-resampler.html,ffmpeg-resampler},
+@url{ffmpeg-codecs.html,ffmpeg-codecs},
+@url{ffmpeg-bitstream-filters.html,ffmpeg-bitstream-filters},
+@url{ffmpeg-formats.html,ffmpeg-formats},
+@url{ffmpeg-devices.html,ffmpeg-devices},
+@url{ffmpeg-protocols.html,ffmpeg-protocols},
+@url{ffmpeg-filters.html,ffmpeg-filters}
+@end ifhtml
+
+@ifnothtml
+@ifset config-all
+ffplay(1),
+@end ifset
+@ifset config-not-all
+ffplay-all(1),
+@end ifset
+ffmpeg(1), ffprobe(1),
+ffmpeg-utils(1), ffmpeg-scaler(1), ffmpeg-resampler(1),
+ffmpeg-codecs(1), ffmpeg-bitstream-filters(1), ffmpeg-formats(1),
+ffmpeg-devices(1), ffmpeg-protocols(1), ffmpeg-filters(1)
+@end ifnothtml
+
+@include authors.texi
+
+@ignore
+
+@setfilename ffplay
+@settitle FFplay 媒体播放器
+
+@end ignore
+
+@bye

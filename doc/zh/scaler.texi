@@ -1,0 +1,151 @@
+@anchor{scaler_options}
+@chapter 缩放器选项
+@c man begin SCALER OPTIONS
+
+视频缩放器支持以下命名选项。
+
+可以通过在 FFmpeg 工具中指定 -@var{option} @var{value} 来设置选项，
+下面注明的少数仅限 API 使用的选项除外。
+对于编程使用，可以在 @code{SwsContext} 选项中显式设置，
+或通过 @file{libavutil/opt.h} API 设置。
+
+@table @option
+
+@anchor{sws_flags}
+@item sws_flags
+设置缩放器标志。这也用于设置缩放算法。应该只选择一种算法。
+默认值是 @samp{bicubic}。
+
+它接受以下值:
+@table @samp
+@item fast_bilinear
+选择快速双线性缩放算法。
+
+@item bilinear
+选择双线性缩放算法。
+
+@item bicubic
+选择双三次缩放算法。
+
+@item experimental
+选择实验性缩放算法。
+
+@item neighbor
+选择最近邻重采样算法。
+
+@item area
+选择平均区域重采样算法。
+
+@item bicublin
+为亮度分量选择双三次缩放算法，为色度分量选择双线性算法。
+
+@item gauss
+选择高斯重采样算法。
+
+@item sinc
+选择 sinc 重采样算法。
+
+@item lanczos
+选择 Lanczos 重采样算法。默认宽度（alpha）为 3，
+可以通过设置 @code{param0} 来更改。
+
+@item spline
+选择自然双三次样条重采样算法。
+
+@item print_info
+启用打印/调试日志。
+
+@item accurate_rnd
+启用精确舍入。
+
+@item full_chroma_int
+启用完整色度插值。
+
+@item full_chroma_inp
+选择完整色度输入。
+
+@item bitexact
+启用比特精确输出。
+
+@item unstable
+允许使用实验性新代码。可能会微妙地影响输出，甚至产生错误结果。仅用于测试。
+@end table
+
+@item srcw @var{(仅限 API)}
+设置源宽度。
+
+@item srch @var{(仅限 API)}
+设置源高度。
+
+@item dstw @var{(仅限 API)}
+设置目标宽度。
+
+@item dsth @var{(仅限 API)}
+设置目标高度。
+
+@item src_format @var{(仅限 API)}
+设置源像素格式（必须表示为整数）。
+
+@item dst_format @var{(仅限 API)}
+设置目标像素格式（必须表示为整数）。
+
+@item src_range @var{(布尔值)}
+如果值设置为 @code{1}，表示源是全范围。
+默认值为 @code{0}，表示源是有限范围。
+
+@item dst_range @var{(布尔值)}
+如果值设置为 @code{1}，为目标启用全范围。
+默认值为 @code{0}，启用有限范围。
+
+@item gamma @var{(布尔值)}
+如果值设置为 @code{1}，启用伽马校正缩放。默认值为 @code{0}。
+
+@anchor{sws_params}
+@item param0, param1
+设置缩放算法参数。指定的值特定于某些缩放算法，
+被其他算法忽略。指定的值是浮点数值。
+
+@item sws_dither
+设置抖动算法。接受以下值之一。
+默认值是 @samp{auto}。
+
+@table @samp
+@item auto
+自动选择
+
+@item none
+无抖动
+
+@item bayer
+Bayer 抖动
+
+@item ed
+误差扩散抖动
+
+@item a_dither
+算术抖动，基于加法运算
+
+@item x_dither
+算术抖动，基于异或运算（比 a_dither 更随机/图案更不明显）。
+
+@end table
+
+@item alphablend
+设置当输入有 alpha 通道但输出没有时使用的 alpha 混合方式。
+默认值是 @samp{none}。
+
+@table @samp
+@item uniform_color
+混合到均匀背景色上
+
+@item checkerboard
+混合到棋盘格上
+
+@item none
+不混合
+
+@end table
+
+@end table
+
+@c man end SCALER OPTIONS

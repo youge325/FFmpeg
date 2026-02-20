@@ -1,0 +1,339 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle FFmpeg 邮件列表常见问题
+@titlepage
+@center @titlefont{FFmpeg 邮件列表常见问题}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 一般问题
+
+@section 什么是邮件列表？
+
+邮件列表与普通电子邮件没有太大区别，但主要不同之处在于你的消息会被所有订阅该列表的人收到。
+它有点像论坛，但以电子邮件的形式呈现。
+
+参见 @url{https://lists.ffmpeg.org/pipermail/ffmpeg-user/, ffmpeg-user 归档}
+中的示例。
+
+@section 我可以提什么类型的问题？
+
+@itemize
+@item
+@url{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-user/, ffmpeg-user}：
+用于涉及 FFmpeg 命令行工具（@command{ffmpeg}、@command{ffprobe}、@command{ffplay}）的
+非脚本化使用或编译问题。
+
+@item
+@url{https://lists.ffmpeg.org/mailman/listinfo/libav-user/, libav-user}：
+用于涉及 FFmpeg libav* 库（libavcodec、libavformat、libavfilter 等）的问题。
+
+@item
+@url{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel/, ffmpeg-devel}：
+用于涉及 FFmpeg 开发的讨论以及提交补丁。用户问题请到 ffmpeg-user 或 libav-user 提问。
+@end itemize
+
+报告 bug 请参见 @url{https://ffmpeg.org/bugreports.html}。
+
+我们无法为脚本和/或第三方工具提供帮助。
+
+@anchor{How do I ask a question or send a message to a mailing list?}
+@section 如何提问或向邮件列表发送消息？
+
+首先你必须@ref{How do I subscribe?, 订阅}。然后你只需发送电子邮件：
+
+@itemize
+@item
+发送邮件至 @email{ffmpeg-user@@ffmpeg.org} 向 ffmpeg-user 邮件列表发送消息。
+
+@item
+发送邮件至 @email{libav-user@@ffmpeg.org} 向 libav-user 邮件列表发送消息。
+
+@item
+发送邮件至 @email{ffmpeg-devel@@ffmpeg.org} 向 ffmpeg-devel 邮件列表发送消息。
+@end itemize
+
+@chapter 订阅 / 退订
+
+@anchor{How do I subscribe?}
+@section 如何订阅？
+
+发送邮件至 @email{ffmpeg-user-request@@ffmpeg.org}，主题为 @emph{subscribe}。
+
+或者访问 @url{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-user/, ffmpeg-user 邮件列表信息页面}，
+参阅 @emph{Subscribing to ffmpeg-user} 部分。
+
+其他邮件列表的订阅流程相同。
+
+@section 如何退订？
+
+发送邮件至 @email{ffmpeg-user-request@@ffmpeg.org}，主题为 @emph{unsubscribe}。
+
+或者访问 @url{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-user/, ffmpeg-user 邮件列表信息页面}，
+滚动到页面底部，在输入框中输入你的电子邮件地址，然后点击 @emph{Unsubscribe or edit options} 按钮。
+
+其他邮件列表的退订流程相同。
+
+除非你确实无法自行退订，否则请避免要求邮件列表管理员帮你退订。参见 @ref{Who do I contact if I have a problem with the mailing list?}
+
+注意，你可以临时暂停邮件投递（假期模式）。
+参见 @ref{How do I disable mail delivery without unsubscribing?}
+
+@chapter 审核队列
+@anchor{Why is my message awaiting moderator approval?}
+@section 为什么我的消息等待版主审核？
+
+某些消息会自动被放入@emph{审核队列}中，必须由邮件列表管理员手动批准：
+
+包括：
+
+@itemize
+
+@item
+超过@ref{What is the message size limit?, 消息大小限制}的消息。
+
+@item
+账户被设置了@emph{审核标记}的用户发送的消息（极少发生，但如果用户反复忽视规则或对他人不友善，可能会被设置）。
+@end itemize
+
+@section 我在审核队列中的消息多久能被批准？
+
+审核队列不会定期检查。你可以在 Libera Chat 的 @t{#ffmpeg-devel} IRC 频道上
+请求有人批准你的消息。
+
+@anchor{How do I delete my message in the moderation queue?}
+@section 如何删除我在审核队列中的消息？
+
+你应该已经收到一封主题为 @emph{Your message to <邮件列表名称> awaits moderator approval} 的邮件。
+邮件中包含一个链接，可以让你删除你的消息，除非邮件列表管理员已经批准或拒绝了它。
+
+@chapter 归档
+
+@anchor{Where are the archives?}
+@section 归档在哪里？
+
+参见 @url{https://ffmpeg.org/contact.html, FFmpeg 联系方式} 页面上的 @emph{Archives} 部分，
+了解所有 FFmpeg 邮件列表归档的链接。
+
+注意归档按月划分。跨越数月的讨论将在归档中被拆分到各个月份。
+
+@section 如何回复归档中的消息？
+
+点击消息顶部主题标题下方的邮件链接。该链接将提供适当的邮件头以保持消息在原始线程中。
+
+注意你必须先订阅才能向 ffmpeg-user 或 libav-user 邮件列表发送消息。
+
+@section 如何搜索归档？
+
+使用你喜欢的搜索引擎进行站内搜索。例如：
+
+@t{site:lists.ffmpeg.org/pipermail/ffmpeg-user/ "搜索词"}
+
+@chapter 其他
+
+@section 有没有邮件列表的替代方案？
+
+你可以在 Libera Chat 的官方 @t{#ffmpeg} IRC 频道上寻求帮助。
+
+还有许多第三方帮助网站，如
+@url{https://superuser.com/tags/ffmpeg, Super User} 和
+@url{https://www.reddit.com/r/ffmpeg/, r/ffmpeg on reddit}。
+
+@anchor{What is top-posting?}
+@section 什么是顶部回复（top-posting）？
+
+参见 @url{https://en.wikipedia.org/wiki/Posting_style#Top-posting}。
+
+请改为使用精简的交错式/内联式回复（@url{https://lists.ffmpeg.org/pipermail/ffmpeg-user/2017-April/035849.html, 示例}）。
+
+@anchor{What is the message size limit?}
+@section 消息大小限制是多少？
+
+消息大小限制为 1000 千字节。请提供链接而不是附件来发送较大的文件。
+
+@section 我可以在哪里上传示例文件？
+
+任何对我们来说不太麻烦的地方都可以。
+
+Google Drive 和 Dropbox 如果你需要文件托管的话是可以接受的，
+@url{https://0x0.st/, 0x0.st} 适用于 256 MiB 以下的文件。
+
+如果可能的话，建议使用小而短的示例。
+
+@section 如果我发送消息和/或订阅邮件列表，我会收到垃圾邮件吗？
+
+可能性极低。
+
+@itemize
+@item
+订阅用户列表不是公开的。
+
+@item
+归档中的电子邮件地址已被混淆处理。
+
+@item
+我们使用了几个独立的测试邮件账户，目前都没有收到任何垃圾邮件。
+@end itemize
+
+但是你可能偶尔会在邮件列表中看到垃圾邮件：
+
+@itemize
+@item
+审核队列中的垃圾邮件可能由于人为失误而被意外批准。
+
+@item
+曾有少数订阅用户的邮箱被黑客入侵，来自（或看似来自）被入侵账户的垃圾邮件被发送给了
+他们的联系人（邮件列表在这种情况下也是联系人之一）。
+
+@item
+如果你订阅了 bug 追踪邮件列表（ffmpeg-trac），你可能会偶尔以虚假 bug 报告的形式
+看到垃圾邮件，但我们会采取措施尽力防止这种情况。
+@end itemize
+
+@section 如何过滤邮件列表消息？
+
+使用 @emph{List-Id}。例如，ffmpeg-user 邮件列表的 List-Id 是
+@t{ffmpeg-user.ffmpeg.org}。你可以在原始邮件或邮件头中查看 List-Id。
+
+然后你可以将邮件列表消息过滤到专门的文件夹中。
+
+@anchor{How do I disable mail delivery without unsubscribing?}
+@section 如何在不退订的情况下停止接收邮件？
+
+有时你可能想临时停止接收所有邮件列表消息。这种"假期模式"很容易设置：
+
+@enumerate
+@item
+访问 @url{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-user/, ffmpeg-user 邮件列表信息页面}
+
+@item
+在页面最底部的输入框中输入你的电子邮件地址，然后点击 @emph{Unsubscribe or edit options} 按钮。
+
+@item
+输入你的密码并点击 @emph{Log in} 按钮。
+
+@item
+找到 @emph{Mail delivery} 选项。在这里你可以禁用/启用邮件投递。如果你勾选 @emph{Set globally}，
+你的选择将应用于你订阅的所有其他 FFmpeg 邮件列表。
+@end enumerate
+
+或者，从你的订阅地址发送邮件至 @email{ffmpeg-user-request@@ffmpeg.org}，
+主题为 @emph{set delivery off}。要重新启用邮件投递，发送邮件至
+@email{ffmpeg-user-request@@ffmpeg.org}，主题为 @emph{set delivery on}。
+
+@anchor{Why is the mailing list munging my address?}
+@section 为什么邮件列表篡改了我的地址？
+
+这是由于有些订阅者使用的邮件服务具有 DMARC 拒绝策略，这给邮件列表运营者带来了困难。
+
+邮件列表必须重写（篡改）这些用户的 @emph{From:} 邮件头；否则他们的邮件服务将拒绝并退回消息，
+导致自动从邮件列表退订。
+
+当这些用户发送消息时，他们的名字后面会被添加 @emph{via <邮件列表名称>}，
+并且 @emph{From:} 地址被篡改为对应邮件列表的地址。
+
+如果你想避免这种情况，请使用其他邮件服务。
+
+注意 ffmpeg-devel 不会应用任何地址篡改，因为这会导致补丁作者归属问题。因此，
+使用具有 DMARC 拒绝策略的邮件服务的用户可能会由于消息被拒绝和退回而被自动退订。
+
+@chapter 规则与礼仪
+
+@section 有哪些规则和规范的礼仪？
+
+看起来需要记住很多事情，但我们是想帮助你，遵循这些准则可以让你更快地得到答案，
+也有助于避免被忽视。
+
+@itemize
+@item
+始终展示你实际的、非脚本化的 @command{ffmpeg} 命令和命令的完整、未删减的控制台输出。
+
+@item
+使用最简单、最精简的命令，同时仍能展示你遇到的问题。
+
+@item
+提供所有必要信息，以便他人能够尝试重现你的问题。这包括实际命令、完整未删减的
+控制台输出，以及重现问题所需的任何输入文件。
+
+@item
+使用你能获得的最新版本的 @command{ffmpeg}。参见 @url{https://ffmpeg.org/download.html, FFmpeg 下载}
+页面获取 Linux、macOS 和 Windows 的最新构建版本链接。或者从当前 git master 分支编译。
+
+@item
+避免@url{https://en.wikipedia.org/wiki/Posting_style#Top-posting, 顶部回复}。
+另见 @ref{What is top-posting?}
+
+@item
+避免劫持线程。线程劫持是指回复一条消息并将主题行改为与原始线程无关的内容。
+大多数邮件客户端仍会在原始线程下显示重命名后的消息。这可能会造成混淆，
+这类消息经常被忽视。
+
+@item
+不要发送截图。请复制粘贴控制台文本，而不是截图。
+
+@item
+如果可能的话，避免发送电子邮件免责声明和法律条文，因为这是公开列表。
+
+@item
+除非被要求，否则避免使用 @code{-loglevel debug}、@code{-loglevel quiet} 和
+@command{-hide_banner} 选项。
+
+@item
+如果你附加文件，避免压缩小文件。首选未压缩格式。
+
+@item
+请不要发送纯 HTML 消息。邮件列表将忽略你消息的 HTML 部分。大多数邮件客户端会
+自动包含文本部分：邮件列表将使用文本部分。
+
+@item
+建议将你的邮件客户端配置为在 70 个字符左右处换行。
+
+@item
+避免向多个邮件列表发送相同的消息。
+
+@item
+请遵循我们的 @url{https://ffmpeg.org/community.html#Code-of-Conduct, 行为准则}。
+@end itemize
+
+@chapter 帮助
+
+@section 为什么我收不到任何消息？
+
+一些邮件服务提供商有黑名单或垃圾邮件过滤器，会阻止或将邮件列表消息标记为误报。
+不幸的是，用户通常不知道这一点，而且往往无法控制。
+
+在可能的情况下，我们会尝试通知提供商将我们从黑名单或过滤器中移除。
+
+@section 为什么我发送的消息没有出现？
+
+除了@ref{Why is my message awaiting moderator approval?, 被放入审核队列的消息}之外，
+还有一些其他原因可能导致你的消息无法显示：
+
+@itemize
+@item
+邮件列表会忽略纯 HTML 消息。大多数邮件客户端会自动在 HTML 邮件旁边包含文本部分：
+邮件列表将使用文本部分。如果你的邮件客户端没有这样做，那请认为你的客户端有问题，
+因为与 HTML 部分一起发送文本部分以形成多部分消息是电子邮件标准所推荐的。
+
+@item
+检查你的垃圾邮件文件夹。
+@end itemize
+
+@anchor{Why do I keep getting unsubscribed from ffmpeg-devel?}
+@section 为什么我一直被自动退订 ffmpeg-devel？
+
+使用具有 DMARC 拒绝或隔离策略的邮件服务的用户，由于邮件列表消息持续被拒绝和退回，
+可能会被自动从 ffmpeg-devel 邮件列表退订。
+
+请考虑使用其他邮件服务。
+
+@anchor{Who do I contact if I have a problem with the mailing list?}
+@section 如果我遇到邮件列表问题应该联系谁？
+
+发送邮件至 @email{ffmpeg-user-owner@@ffmpeg.org}。
+
+@bye

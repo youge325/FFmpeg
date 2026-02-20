@@ -1,0 +1,210 @@
+@chapter 重采样器选项
+@c man begin RESAMPLER OPTIONS
+
+音频重采样器支持以下命名选项。
+
+可以通过在 FFmpeg 工具中指定 -@var{option} @var{value}、
+在 aresample 滤镜中使用 @var{option}=@var{value}、
+在 @code{SwrContext} 选项中显式设置值、
+或使用 @file{libavutil/opt.h} API 进行编程使用来设置选项。
+
+@table @option
+
+@item uchl, used_chlayout
+设置使用的输入声道布局。默认未设置。此选项仅用于特殊重映射。
+
+@item isr, in_sample_rate
+设置输入采样率。默认值为 0。
+
+@item osr, out_sample_rate
+设置输出采样率。默认值为 0。
+
+@item isf, in_sample_fmt
+指定输入采样格式。默认设置为 @code{none}。
+
+@item osf, out_sample_fmt
+指定输出采样格式。默认设置为 @code{none}。
+
+@item tsf, internal_sample_fmt
+设置内部采样格式。默认值为 @code{none}。
+未显式设置时将自动选择。
+
+@item ichl, in_chlayout
+@item ochl, out_chlayout
+设置输入/输出声道布局。
+
+请参阅 @ref{channel layout syntax,,ffmpeg-utils(1) 手册中的声道布局章节,ffmpeg-utils}
+了解所需的语法。
+
+@item clev, center_mix_level
+设置中置声道混合电平。该值以分贝表示，必须在 [-32,32] 区间内。
+
+@item slev, surround_mix_level
+设置环绕声混合电平。该值以分贝表示，必须在 [-32,32] 区间内。
+
+@item lfe_mix_level
+设置 LFE 混入非 LFE 电平。在有 LFE 输入但没有 LFE 输出时使用。
+该值以分贝表示，必须在 [-32,32] 区间内。
+
+@item rmvol, rematrix_volume
+设置重矩阵音量。默认值为 1.0。
+
+@item rematrix_maxval
+设置重矩阵的最大输出值。
+可用于防止削波或防止音量降低。
+值为 1.0 可防止削波。
+
+@item flags, swr_flags
+设置转换器使用的标志。默认值为 0。
+
+它支持以下单独标志:
+@table @option
+@item res
+强制重采样，此标志强制即使输入和输出采样率匹配也使用重采样。
+@end table
+
+@item dither_scale
+设置抖动比例。默认值为 1。
+
+@item dither_method
+设置抖动方法。默认值为 0。
+
+支持的值:
+@table @samp
+@item rectangular
+选择矩形抖动
+@item triangular
+选择三角形抖动
+@item triangular_hp
+选择带高通的三角形抖动
+@item lipshitz
+选择 Lipshitz 噪声整形抖动。
+@item shibata
+选择 Shibata 噪声整形抖动。
+@item low_shibata
+选择低 Shibata 噪声整形抖动。
+@item high_shibata
+选择高 Shibata 噪声整形抖动。
+@item f_weighted
+选择 f 加权噪声整形抖动
+@item modified_e_weighted
+选择修改的 e 加权噪声整形抖动
+@item improved_e_weighted
+选择改进的 e 加权噪声整形抖动
+
+@end table
+
+@item resampler
+设置重采样引擎。默认值为 swr。
+
+支持的值:
+@table @samp
+@item swr
+选择原生软件重采样器；在这种情况下不适用 precision 和 cheby 滤波器选项。
+@item soxr
+选择 SoX 重采样器（如果可用）；在这种情况下不适用 compensation 以及
+filter_size、phase_shift、exact_rational、filter_type 和 kaiser_beta
+滤波器选项。
+@end table
+
+@item filter_size
+仅适用于 swr，设置重采样滤波器大小，默认值为 32。
+
+@item phase_shift
+仅适用于 swr，设置重采样相位偏移，默认值为 10，必须在 [0,30] 区间内。
+
+@item linear_interp
+启用时使用线性插值（默认启用）。如果您想在 exact_rational 失败时
+保持速度而不是质量，请禁用它。
+
+@item exact_rational
+仅适用于 swr，启用时，尝试根据输入和输出采样率使用精确的 phase_count。
+但是，如果它大于 @code{1 << phase_shift}，phase_count 将回退到
+@code{1 << phase_shift}。默认启用。
+
+@item cutoff
+设置截止频率（swr: 6dB 点；soxr: 0dB 点）比率；必须是 0 到 1 之间的浮点值。
+swr 的默认值为 0.97，soxr 的默认值为 0.91（对于 44100 采样率，
+可保留整个音频频带到 20kHz）。
+
+@item precision
+仅适用于 soxr，重采样信号计算的精度位数。
+默认值 20（配合适当的抖动，适合 16 位目标位深度）给出 SoX 的"高质量"；
+值 28 给出 SoX 的"非常高质量"。
+
+@item cheby
+仅适用于 soxr，选择通带滚降无（切比雪夫）和更高精度的"无理"比率近似。
+默认值为 0。
+
+@item async
+仅适用于 swr，通过拉伸、压缩、填充和修剪实现简单的单参数音频同步到时间戳。
+将此设置为 1 将启用填充和修剪，更大的值表示每秒可以拉伸或压缩数据的最大采样数。
+默认值为 0，因此不应用补偿来使采样匹配音频时间戳。
+
+@item first_pts
+仅适用于 swr，假设第一个 pts 应该是这个值。时间单位是 1 / 采样率。
+这允许在流开始时进行填充/修剪。默认情况下，不对第一帧的预期 pts
+做任何假设，因此不进行填充或修剪。例如，如果音频流在视频流之后开始，
+可以将此设置为 0 以在开头填充静音，或者由于编码器延迟而修剪任何具有
+负 pts 的采样。
+
+@item min_comp
+仅适用于 swr，设置时间戳和音频数据之间的最小差异（以秒为单位），
+以触发拉伸/压缩/填充或修剪数据使其匹配时间戳。
+默认情况下拉伸/压缩/填充和修剪被禁用
+（@option{min_comp} = @code{FLT_MAX}）。
+
+@item min_hard_comp
+仅适用于 swr，设置时间戳和音频数据之间的最小差异（以秒为单位），
+以触发添加/删除采样使其匹配时间戳。此选项实际上是在硬（修剪/填充）
+和软（压缩/拉伸）补偿之间选择的阈值。注意，默认情况下所有补偿都通过
+@option{min_comp} 禁用。
+默认值为 0.1。
+
+@item comp_duration
+仅适用于 swr，设置拉伸/压缩数据使其匹配时间戳的持续时间（以秒为单位）。
+必须是非负双精度浮点值，默认值为 1.0。
+
+@item max_soft_comp
+仅适用于 swr，设置拉伸/压缩数据使其匹配时间戳的最大因子。
+必须是非负双精度浮点值，默认值为 0。
+
+@item matrix_encoding
+选择矩阵立体声编码。
+
+它接受以下值:
+@table @samp
+@item none
+选择无
+@item dolby
+选择 Dolby
+@item dplii
+选择 Dolby Pro Logic II
+@end table
+
+默认值为 @code{none}。
+
+@item filter_type
+仅适用于 swr，选择重采样滤波器类型。这只影响重采样操作。
+
+它接受以下值:
+@table @samp
+@item cubic
+选择三次
+@item blackman_nuttall
+选择 Blackman Nuttall 窗口 sinc
+@item kaiser
+选择 Kaiser 窗口 sinc
+@end table
+
+@item kaiser_beta
+仅适用于 swr，设置 Kaiser 窗口 beta 值。必须是 [2,16] 区间内的双精度浮点值，
+默认值为 9。
+
+@item output_sample_bits
+仅适用于 swr，设置用于抖动的输出采样位数。必须是 [0,64] 区间内的整数，
+默认值为 0，表示不使用。
+
+@end table
+
+@c man end RESAMPLER OPTIONS

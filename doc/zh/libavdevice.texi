@@ -1,0 +1,39 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle Libavdevice 文档
+@titlepage
+@center @titlefont{Libavdevice 文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 描述
+@c man begin DESCRIPTION
+
+libavdevice 库提供了一个通用的框架，用于从许多常见的多媒体输入/输出设备获取和渲染数据。
+
+@c man end DESCRIPTION
+
+@chapter 另见
+
+@ifhtml
+@url{ffmpeg.html,ffmpeg}, @url{ffplay.html,ffplay}, @url{ffprobe.html,ffprobe}
+@end ifhtml
+
+@ifnothtml
+ffmpeg(1), ffplay(1), ffprobe(1)
+@end ifnothtml
+
+@include authors.texi
+
+@ignore
+
+@setfilename libavdevice
+@settitle Libavdevice 文档
+
+@end ignore
+
+@bye

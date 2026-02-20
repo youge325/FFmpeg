@@ -1,0 +1,151 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle NUT
+
+@titlepage
+@center @titlefont{NUT}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 描述
+NUT 是一种低开销的通用容器格式。它以简单而高效的方式存储音频、视频、字幕和用户自定义流。
+
+它由一群 FFmpeg 和 MPlayer 开发者于 2003 年创建，并于 2008 年定稿。
+
+官方 NUT 规范位于 svn://svn.mplayerhq.hu/nut。
+如果本文与官方规范有任何差异，以官方规范为准。
+
+@chapter 模式
+NUT 有一些变体，通过主头部中的标志字段来标识。
+
+@multitable @columnfractions .4 .4
+@item BROADCAST   @tab 扩展同步点以报告发送方墙钟时间
+@item PIPE        @tab 完全省略同步点
+@end multitable
+
+@section BROADCAST
+
+BROADCAST 变体提供辅助时间参考，以便检测端点延迟和网络延迟。
+它假设所有端点时钟已同步。
+用于实时场景。
+
+@section PIPE
+
+PIPE 变体假设 NUT 用作不可定位的中间容器，
+通过不使用同步点来减少不必要的开销并降低整体内存使用。
+
+@chapter 容器特定编解码器标签
+
+@section 通用原始 YUVA 格式
+
+由于许多特殊的平面 YUVA 像素格式未被 AVI/QuickTime FourCC 列表所考虑，
+因此采用以下方案来表示它们。
+
+前两个字节可以包含以下值：
+Y1 = 仅 Y
+Y2 = Y+A
+Y3 = YUV
+Y4 = YUVA
+
+第三个字节表示 UV 平面的宽度和高度色度子采样值，
+即将亮度宽度/高度右移以获得色度宽度/高度的量。
+
+第四个字节是使用的位数（8、16、...）。
+
+如果字节顺序反转，则意味着每个分量需要以大端序读取。
+
+@section 原始音频
+
+@multitable @columnfractions .4 .4
+@item ALAW  @tab A-LAW
+@item ULAW  @tab MU-LAW
+@item P<type><interleaving><bits> @tab 小端序 PCM
+@item <bits><interleaving><type>P @tab 大端序 PCM
+@end multitable
+
+<type> 为 S 表示有符号整数，U 表示无符号整数，F 表示 IEEE 浮点数
+<interleaving> 为 D 表示默认，P 表示平面
+<bits> 为 8/16/24/32
+
+@example
+PFD[32]   例如表示有符号 32 位小端序 IEEE 浮点数
+@end example
+
+@section 字幕
+
+@multitable @columnfractions .4 .4
+@item UTF8   @tab 原始 UTF-8
+@item SSA[0] @tab SubStation Alpha
+@item DVDS   @tab DVD 字幕
+@item DVBS   @tab DVB 字幕
+@end multitable
+
+@section 原始数据
+
+@multitable @columnfractions .4 .4
+@item UTF8   @tab 原始 UTF-8
+@end multitable
+
+@section 编解码器
+
+@multitable @columnfractions .4 .4
+@item 3IV1 @tab 旧版 3ivx 生成的不合规 MPEG-4
+@item ASV1 @tab Asus Video
+@item ASV2 @tab Asus Video 2
+@item CVID @tab Cinepak
+@item CYUV @tab Creative YUV
+@item DIVX @tab 旧版 DivX 生成的不合规 MPEG-4
+@item DUCK @tab Truemotion 1
+@item FFV1 @tab FFmpeg video 1
+@item FFVH @tab FFmpeg Huffyuv
+@item H261 @tab ITU H.261
+@item H262 @tab ITU H.262
+@item H263 @tab ITU H.263
+@item H264 @tab ITU H.264
+@item HFYU @tab Huffyuv
+@item I263 @tab Intel H.263
+@item IV31 @tab Indeo 3.1
+@item IV32 @tab Indeo 3.2
+@item IV50 @tab Indeo 5.0
+@item LJPG @tab ITU JPEG（无损）
+@item MJLS @tab ITU JPEG-LS
+@item MJPG @tab ITU JPEG
+@item MPG4 @tab MS MPEG-4v1（非 ISO MPEG-4）
+@item MP42 @tab MS MPEG-4v2
+@item MP43 @tab MS MPEG-4v3
+@item MP4V @tab ISO MPEG-4 Part 2 Video（来自旧版编码器）
+@item mpg1 @tab ISO MPEG-1 Video
+@item mpg2 @tab ISO MPEG-2 Video
+@item MRLE @tab MS RLE
+@item MSVC @tab MS Video 1
+@item RT21 @tab Indeo 2.1
+@item RV10 @tab RealVideo 1.0
+@item RV20 @tab RealVideo 2.0
+@item RV30 @tab RealVideo 3.0
+@item RV40 @tab RealVideo 4.0
+@item SNOW @tab FFmpeg Snow
+@item SVQ1 @tab Sorenson Video 1
+@item SVQ3 @tab Sorenson Video 3
+@item theo @tab Xiph Theora
+@item TM20 @tab Truemotion 2.0
+@item UMP4 @tab UB Video MPEG-4 生成的不合规 MPEG-4
+@item VCR1 @tab ATI VCR1
+@item VP30 @tab VP 3.0
+@item VP31 @tab VP 3.1
+@item VP50 @tab VP 5.0
+@item VP60 @tab VP 6.0
+@item VP61 @tab VP 6.1
+@item VP62 @tab VP 6.2
+@item VP70 @tab VP 7.0
+@item WMV1 @tab MS WMV7
+@item WMV2 @tab MS WMV8
+@item WMV3 @tab MS WMV9
+@item WV1F @tab ? 生成的不合规 MPEG-4
+@item WVC1 @tab VC-1
+@item XVID @tab 旧版 Xvid 生成的不合规 MPEG-4
+@item XVIX @tab 旧版 Xvid 生成的带隔行扫描 bug 的不合规 MPEG-4
+@end multitable

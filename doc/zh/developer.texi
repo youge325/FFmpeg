@@ -1,0 +1,345 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle 开发者文档
+@titlepage
+@center @titlefont{开发者文档}
+@end titlepage
+
+@top
+
+@contents
+
+@chapter 简介
+
+本文关注的是 FFmpeg 自身的开发。关于在其他程序中使用 FFmpeg 库的信息可以在其他地方找到，例如：
+@itemize @bullet
+@item
+已安装的头文件
+@item
+@url{http://ffmpeg.org/doxygen/trunk/index.html, Doxygen 文档}（从头文件生成）
+@item
+@file{doc/examples} 下的示例
+@end itemize
+
+有关在外部程序中使用 FFmpeg 的更详细法律信息，请阅读源代码树中的 @file{LICENSE} 文件并查阅 @url{https://ffmpeg.org/legal.html}。
+
+如果你为自己的用例修改了 FFmpeg 代码，我们强烈鼓励你@emph{将你的更改提交回我们}，使用本文档作为指南。这样做有实际和理念上的原因：
+@itemize @bullet
+@item
+维护外部更改以跟上上游开发是耗时且容易出错的。将你的代码放在主树中，它将由 FFmpeg 开发者维护。
+@item
+FFmpeg 开发者包括该领域的领先专家，他们可以发现你代码中的 bug 或设计缺陷。
+@item
+通过支持你觉得有用的项目，你确保它继续得到维护和开发。
+@end itemize
+
+所有提议的代码更改应提交到 @url{mailto:ffmpeg-devel@@ffmpeg.org, 开发邮件列表} 进行审查，详情见 @ref{提交补丁} 章节。代码应遵守 @ref{开发策略} 并遵循 @ref{编码规则}。进行提交的开发者和作者对其更改负责，并应尝试修复其提交导致的问题。
+
+@anchor{编码规则}
+@chapter 编码规则
+
+@section 语言
+
+FFmpeg 主要使用 ISO C11 语言编写，公共头文件必须保持 C99 兼容。
+
+可以有充分理由使用编译器特定的扩展，但不能依赖它们，即代码在缺少该扩展的编译器上仍然必须能够编译和工作。
+
+以下 C99 特性不得在代码库中的任何地方使用：
+@itemize @bullet
+@item
+变长数组；
+@item
+复数；
+@end itemize
+
+@subsection SIMD/DSP
+@anchor{SIMD/DSP}
+
+由于现代编译器无法从纯 C 代码生成高效的 SIMD 或其他性能关键的 DSP 代码，因此使用手写汇编。通常这样的代码被隔离在单独的函数中。然后标准方法是编写此函数的多个版本——一个在所有地方都能工作的纯 C 版本（也可能用于调试），以及可能的多个特定架构的优化实现。初始化代码然后在运行时选择最佳可用版本并将其加载到函数指针中；之后该函数总是通过此指针调用。
+
+用于编写汇编的特定语法是：
+@itemize @bullet
+@item
+x86 上使用 NASM；
+@item
+ARM 和 RISC-V 上使用 GAS。
+@end itemize
+
+一个名为 @code{checkasm} 的汇编单元测试框架位于 @file{tests/checkasm}。所有新的汇编都应附带 @code{checkasm} 测试；也强烈鼓励为缺少测试的现有汇编添加测试。
+
+@subsection 其他语言
+
+在特殊情况下可以使用 C 以外的其他语言：
+@itemize @bullet
+@item
+当所讨论的代码无法按照 @ref{SIMD/DSP} 节中描述的标准方式编写时，使用编译器内联函数或内联汇编。这通常适用于需要内联的代码。
+@item
+在与 macOS 特定接口交互时需要使用 Objective-C。
+@end itemize
+
+@section 代码格式约定
+
+文件中代码风格有以下准则：
+
+@itemize @bullet
+@item
+缩进大小为 4。
+@item
+TAB 字符在 Makefile 之外是禁止的，任何形式的尾随空白也是如此。包含这两者之一的提交将被 git 仓库拒绝。
+@item
+你应该尝试将代码行限制在 80 个字符以内；但是，仅在这能提高可读性时才这样做。
+@item
+使用 K&R 编码风格。
+@end itemize
+表现形式受 'indent -i4 -kr -nut' 启发。
+
+@section 注释
+使用 JavaDoc/Doxygen 格式（参见下面的示例），以便可以自动生成代码文档。所有非平凡的函数都应在其上方有注释，解释函数的功能，即使只是一句话。所有结构体及其成员变量也应该有文档。
+
+避免使用带 @code{!} 的 Qt 风格和类似的 Doxygen 语法，即将 @code{//!} 替换为 @code{///} 等。还应使用 @@ 语法用于标记命令，即使用 @code{@@param} 而不是 @code{\param}。
+
+@anchor{命名约定}
+@section 命名约定
+
+函数、变量和结构体成员的名称必须是小写的，使用下划线 (_) 分隔单词。例如，@samp{avfilter_get_video_buffer} 是一个可接受的函数名，而 @samp{AVFilterGetVideo} 则不是。
+
+结构体、联合体、枚举和 typedef 类型名称必须使用驼峰命名。所有结构体和联合体应该 typedef 为与结构体/联合体标签相同的名称，例如 @code{typedef struct AVFoo @{ ... @} AVFoo;}。枚举通常不进行 typedef。
+
+枚举常量和宏必须大写，伪装为函数的宏除外，它应该使用函数命名约定。
+
+库中的所有标识符应按以下方式命名：
+@itemize @bullet
+@item
+文件及更低作用域的标识符（如局部变量、静态函数）和结构体/联合体成员不需要命名空间。
+@item
+@code{ff_} 前缀必须用于文件作用域外可见但仅在单个库内部使用的变量和函数。
+@item
+对于文件作用域外可见、跨多个库内部使用的变量和函数，使用 @code{avpriv_} 作为前缀。
+@item
+所有其他内部标识符应仅为避免可能的内部冲突而命名。
+@item
+每个库对公共符号都有自己的前缀。
+@item
+其他公共标识符必须使用其库的公共前缀（@code{AV}、@code{Sws} 或 @code{Swr}）。
+@end itemize
+
+@section 其他约定
+
+@itemize @bullet
+@item
+强制转换应该仅在必要时使用。不必要的括号也应避免，除非它们使代码更容易理解。
+@end itemize
+
+@anchor{开发策略}
+@chapter 开发策略
+
+@section 代码行为
+
+@subheading 正确性
+代码必须是有效的。它不能崩溃、中止、访问无效指针、泄漏内存、导致数据竞争或有符号整数溢出，或以其他方式导致未定义行为。应检查错误代码，并在适用时转发给调用者。
+
+@subheading 线程和库安全性
+我们的库可能被同一进程中的多个独立调用者调用。这些调用可能来自任意数量的线程，不同的调用站点可能不知道彼此的存在。代码在这种条件下必须正确运行。
+
+@subheading 健壮性
+代码必须将从调用者接收或从文件、网络等读取的任何字节流视为不受信任的。当遇到无效输入数据时，通常应打印错误消息并返回 @code{AVERROR_INVALIDDATA}。
+
+@subheading 内存分配
+代码必须使用 @file{libavutil/mem.h} 中的 @code{av_malloc()} 系列函数执行所有内存分配，特殊情况除外。所有分配都应该被检查，失败时返回 @code{AVERROR(ENOMEM)}。
+
+@subheading stdio
+我们的库不能直接访问 stdio 流 stdin/stdout/stderr，因为这不是库安全的。对于日志记录，使用 @code{av_log()}。
+
+@section 补丁/提交
+@subheading 补丁的许可证必须与 FFmpeg 兼容。
+贡献应在 @uref{http://www.gnu.org/licenses/lgpl-2.1.html, LGPL 2.1} 下授权，包含"或任何更高版本"条款，或者如果你偏好赠与式许可证，使用 @uref{http://opensource.org/licenses/isc-license.txt, ISC} 或 @uref{http://mit-license.org/, MIT} 许可证。也可以接受 @uref{http://www.gnu.org/licenses/gpl-2.0.html, GPL 2}（包含"或任何更高版本"条款），但更倾向于 LGPL。
+
+@subheading 你不能提交破坏 FFmpeg 的代码！
+这意味着未完成的、已启用的、破坏编译的代码，或能编译但不工作/破坏回归测试的代码。在特定情况下可以允许未完成但禁用的代码。在推送之前始终检查邮件列表上的审查者意见并测试 FATE。
+
+@subheading 提交消息
+提交消息是告知其他开发者给定更改做了什么以及为什么的重要工具。
+
+@subheading 测试必须充分但不过度。
+如果对你和其他人有效，并通过了 FATE，那么提交它应该是可以的。
+
+@subheading 不要将不相关的更改一起提交。
+它们应该被拆分为自包含的部分。
+
+@subheading 外观更改应保持在单独的补丁中。
+我们拒绝与功能更改混合的源代码缩进和其他外观更改。
+
+@subheading 注明补丁的作者。
+确保提交的作者设置正确。
+
+@subheading 注明研究人员
+如果提交/补丁修复了某个研究人员发现的问题，请始终在提交消息中注明。
+
+@subheading 在推送更改之前始终等待足够长的时间
+不要未经许可提交到他人积极维护的代码。
+
+@section 文档/其他
+@subheading 订阅 ffmpeg-devel 邮件列表。
+订阅 @uref{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel, ffmpeg-devel} 邮件列表很重要。几乎所有非平凡的补丁都应发送到那里进行审查。
+
+@subheading 保持文档更新。
+如果你更改了行为或添加了功能，请更新文档。
+
+@subheading 重要讨论应对所有人开放。
+尽量在公共开发者邮件列表上保持重要讨论和请求。
+
+@anchor{提交补丁}
+@chapter 提交补丁
+
+首先，如果你还没有阅读上面的 @ref{编码规则}，请先阅读，特别是关于补丁提交的规则。
+
+提交补丁时，请使用 @code{git format-patch} 或 @code{git send-email}。我们无法阅读其他格式的 diff :-)。
+
+请不要提交包含多个不相关更改的补丁。将其拆分为独立的、自包含的部分。这不意味着按文件拆分。相反，使补丁尽可能小，同时仍然保持它作为包含单个更改的逻辑单元，即使它跨越多个文件。
+
+使用 FFmpeg 的 patcheck 工具检查你的补丁。该工具位于 tools 目录中。
+
+在提交补丁之前运行 @ref{回归测试}，以验证它不会导致意外问题。
+
+补丁应发布到 @uref{https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel, ffmpeg-devel} 邮件列表。尽可能使用 @code{git send-email}。
+
+@chapter 新编解码器或格式检查清单
+
+@enumerate
+@item
+你是否为编解码器初始化和关闭函数使用了 av_cold？
+@item
+你是否在 AVCodec 或 AVInputFormat/AVOutputFormat 结构体中的 NULL_IF_CONFIG_SMALL 下添加了 long_name？
+@item
+你是否在 @file{libavcodec/version.h} 或 @file{libavformat/version.h} 中增加了次版本号（并重置了微版本号）？
+@item
+你是否在 @file{allcodecs.c} 或 @file{allformats.c} 中注册了它？
+@item
+你是否将 AVCodecID 添加到了 @file{codec_id.h}？
+@item
+如果它有 FourCC，你是否将其添加到了 @file{libavformat/riff.c}？
+@item
+你是否在 Makefile 中添加了编译相应文件的规则？
+@item
+你是否在 @file{doc/general_contents.texi} 的支持格式或编解码器表中添加了条目？
+@item
+你是否在 Changelog 中添加了条目？
+@item
+如果它依赖于解析器或库，你是否在 configure 中添加了该依赖？
+@item
+你是否在提交前 @code{git add} 了相应的文件？
+@item
+你是否确保它可以独立编译？
+@end enumerate
+
+@chapter 补丁提交检查清单
+
+@enumerate
+@item
+@code{make fate} 是否在应用补丁后通过？
+@item
+补丁是否使用 git format-patch 或 send-email 生成？
+@item
+你是否 sign-off 了你的补丁？（@code{git commit -s}）
+@item
+你是否提供了清晰的 git 提交日志消息？
+@item
+补丁是否基于最新的 FFmpeg git master 分支？
+@item
+你是否订阅了 ffmpeg-devel？
+@item
+你是否检查了更改是最小的？
+@item
+如果更改是针对速度关键的代码，你是否进行了基准测试？
+@item
+你是否检查了补丁不会引入缓冲区溢出或其他安全问题？
+@item
+你是否使用损坏的数据测试了你的解码器或解复用器？
+@item
+你是否使用样本文件测试了你的解码器或解复用器？
+@item
+补丁是否混合了功能和外观更改？
+@item
+你是否在代码中添加了 tab 或尾随空白？
+@item
+你是否提供了详细的更改说明？
+@end enumerate
+
+@chapter 补丁审查流程
+
+所有发布到 ffmpeg-devel 的补丁都将被审查，除非它们明确注明补丁不是针对 git master 分支。审查和评论将作为邮件列表上补丁的回复发布。补丁提交者需要处理每条评论，可以通过重新提交修改后的补丁或通过讨论来完成。
+
+我们会审查所有提交的补丁，但有时我们很忙，所以特别是对于大型补丁，这可能需要几周时间。
+
+欢迎每个人审查补丁。如果你正在等待你的补丁被审查，请考虑帮助审查其他人的补丁。
+
+@anchor{回归测试}
+@chapter 回归测试
+
+在提交补丁（或提交到仓库）之前，你至少应该测试你没有破坏任何东西。
+
+运行 'make fate' 可以完成此操作，详见 @url{fate.html}。
+
+@section 可视化测试覆盖
+
+FFmpeg 构建系统允许使用代码覆盖工具 @code{gcov}/@code{lcov} 以简单的方式可视化测试覆盖。步骤如下：
+
+@enumerate
+@item
+    配置启用检测编译：@code{configure --toolchain=gcov}。
+@item
+    运行你的测试用例。
+@item
+    运行 @code{make lcov} 以 HTML 格式生成覆盖数据。
+@item
+    在你偏好的 HTML 浏览器中查看 @code{lcov/index.html}。
+@end enumerate
+
+@section 使用 Valgrind
+
+configure 脚本提供了使用 valgrind 发现内存处理相关 bug 的快捷方式。只需在你的 configure 行中添加选项 @code{--toolchain=valgrind-memcheck} 或 @code{--toolchain=valgrind-massif}。
+
+@anchor{维护}
+@chapter 维护流程
+
+@section MAINTAINERS
+
+维护代码库各部分的开发者列表见 @file{MAINTAINERS}。
+
+@section 成为维护者
+
+人们通过发送补丁（像任何其他代码更改一样）将自己添加到 @file{MAINTAINERS}。
+
+@anchor{发布流程}
+@chapter 发布流程
+
+FFmpeg 维护一组@strong{发布分支}，它们是系统集成商和发行版的推荐交付物。在固定时间，@strong{发布管理者}在 @url{https://ffmpeg.org} 网站上准备、测试和发布 tarball。
+
+有两种发布类型：
+
+@enumerate
+@item
+@strong{主要发布}始终包含最新和最好的功能。
+@item
+@strong{点发布}从 @code{release/X} 命名的@strong{发布分支}切出。
+@end enumerate
+
+请注意，我们向用户承诺，来自任何 FFmpeg 发布的共享库在任何情况下都不会破坏已经针对@strong{同一发布系列}的先前版本@strong{编译}的程序！
+
+@section 点发布标准
+
+符合以下标准的更改是纳入点发布的有效候选：
+
+@enumerate
+@item
+修复安全问题。
+@item
+修复 @url{https://trac.ffmpeg.org} 上记录的已知 bug。
+@item
+改进包含的文档。
+@item
+保持与同一发布分支先前点发布的源代码和二进制兼容性。
+@end enumerate
+
+@bye

@@ -1,0 +1,1405 @@
+@chapter 输入设备
+@c man begin INPUT DEVICES
+
+输入设备是 FFmpeg 中的配置元素，用于访问连接到系统的多媒体设备的数据。
+
+在配置 FFmpeg 构建时，默认启用所有支持的输入设备。你可以使用配置选项
+"--list-indevs" 列出所有可用的输入设备。
+
+你可以使用配置选项 "--disable-indevs" 禁用所有输入设备，并使用选项
+"--enable-indev=@var{INDEV}" 选择性地启用某个输入设备，或者使用选项
+"--disable-indev=@var{INDEV}" 禁用特定的输入设备。
+
+ff* 工具的 "-devices" 选项将显示支持的输入设备列表。
+
+以下是当前可用输入设备的描述。
+
+@section alsa
+
+ALSA（高级 Linux 音频架构）输入设备。
+
+要在配置期间启用此输入设备，你需要在系统上安装 libasound。
+
+此设备允许从 ALSA 设备捕获。要捕获的设备名称必须是 ALSA 卡标识符。
+
+ALSA 标识符的语法为：
+@example
+hw:@var{CARD}[,@var{DEV}[,@var{SUBDEV}]]
+@end example
+
+其中 @var{DEV} 和 @var{SUBDEV} 组件是可选的。
+
+三个参数（按顺序：@var{CARD},@var{DEV},@var{SUBDEV}）分别指定卡号或标识符、
+设备号和子设备号（-1 表示任意）。
+
+要查看系统当前识别的卡列表，请检查文件 @file{/proc/asound/cards} 和
+@file{/proc/asound/devices}。
+
+例如，使用 @command{ffmpeg} 从卡 ID 为 0 的 ALSA 设备捕获，可以运行：
+@example
+ffmpeg -f alsa -i hw:0 alsaout.wav
+@end example
+
+更多信息请参见：
+@url{http://www.alsa-project.org/alsa-doc/alsa-lib/pcm.html}
+
+@subsection 选项
+
+@table @option
+
+@item sample_rate
+设置采样率（Hz）。默认为 48000。
+
+@item channels
+设置通道数。默认为 2。
+
+@end table
+
+@section android_camera
+
+Android 相机输入设备。
+
+此输入设备使用 Android Camera2 NDK API，适用于 API 级别 24+ 的设备。
+android_camera 的可用性在配置时自动检测。
+
+此设备允许从 Android 设备上所有集成到 Camera2 NDK API 的相机进行捕获。
+
+可用的相机在内部枚举，可以使用 @var{camera_index} 参数选择。输入文件字符串将被忽略。
+
+通常后置摄像头的索引为 0，前置摄像头的索引为 1。
+
+@subsection 选项
+
+@table @option
+
+@item video_size
+设置视频大小，如 640x480 或 hd720。
+如果请求的视频大小不可用或使用默认值，则回退到 Android 报告的第一个可用配置。
+
+@item framerate
+设置视频帧率。
+如果请求的帧率不可用或使用默认值（-1），则回退到 Android 报告的第一个可用配置。
+
+@item camera_index
+设置要使用的相机索引。默认为 0。
+
+@item input_queue_size
+设置要缓冲的最大帧数。默认为 5。
+
+@end table
+
+@section avfoundation
+
+AVFoundation 输入设备。
+
+AVFoundation 是 Apple 当前推荐的在 OSX >= 10.7 以及 iOS 上进行流采集的框架。
+
+输入文件名必须使用以下语法：
+@example
+-i "[[VIDEO]:[AUDIO]]"
+@end example
+第一个条目选择视频输入，后者选择音频输入。
+流必须通过设备列表显示的设备名称或设备索引来指定。
+或者，可以使用索引选择视频和/或音频输入设备：
+@option{
+    -video_device_index <INDEX>
+}
+和/或
+@option{
+    -audio_device_index <INDEX>
+}
+，这将覆盖输入文件名中给出的任何设备名称或索引。
+
+可以使用 @option{-list_devices true} 枚举所有可用设备，列出所有设备名称和相应的索引。
+
+有两个设备名称别名：
+@table @code
+
+@item default
+选择相应类型的 AVFoundation 默认设备。
+
+@item none
+不录制相应的媒体类型。
+这等同于指定空设备名称或索引。
+
+@end table
+
+@subsection 选项
+
+AVFoundation 支持以下选项：
+
+@table @option
+
+@item -list_devices <TRUE|FALSE>
+如果设置为 true，则列出所有可用输入设备，显示所有设备名称和索引。
+
+@item -video_device_index <INDEX>
+通过索引指定视频设备。覆盖输入文件名中给出的任何内容。
+
+@item -audio_device_index <INDEX>
+通过索引指定音频设备。覆盖输入文件名中给出的任何内容。
+
+@item -pixel_format <FORMAT>
+请求视频设备使用特定像素格式。
+如果不支持指定的格式，将列出可用格式，并使用列表中的第一个。可用像素格式有：
+@code{monob, rgb555be, rgb555le, rgb565be, rgb565le, rgb24, bgr24, 0rgb, bgr0, 0bgr, rgb0,
+ bgr48be, uyvy422, yuva444p, yuva444p16le, yuv444p, yuv422p16, yuv422p10, yuv444p10,
+ yuv420p, nv12, yuyv422, gray}
+
+@item -framerate
+设置采集帧率。默认为 @code{ntsc}，对应 @code{30000/1001} 的帧率。
+
+@item -video_size
+设置视频帧大小。
+
+@item -capture_cursor
+捕获鼠标指针。默认为 0。
+
+@item -capture_mouse_clicks
+捕获屏幕鼠标点击。默认为 0。
+
+@item -capture_raw_data
+捕获原始设备数据。默认为 0。
+使用此选项可能导致接收传递给 AVFoundation 框架的底层数据。例如，对于向框架发送原始 DV
+数据的混合设备（如磁带摄录机），将此选项设置为 false 将只获取以指定像素格式捕获的
+提取视频帧。将此选项设置为 true 将获取原始 DV 流。
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+打印 AVFoundation 支持的设备列表并退出：
+@example
+$ ffmpeg -f avfoundation -list_devices true -i ""
+@end example
+
+@item
+从视频设备 0 和音频设备 0 录制视频到 out.avi：
+@example
+$ ffmpeg -f avfoundation -i "0:0" out.avi
+@end example
+
+@item
+从视频设备 2 和音频设备 1 录制视频到 out.avi：
+@example
+$ ffmpeg -f avfoundation -video_device_index 2 -i ":1" out.avi
+@end example
+
+@item
+使用 bgr0 像素格式从系统默认视频设备录制视频，不录制音频到 out.avi：
+@example
+$ ffmpeg -f avfoundation -pixel_format bgr0 -i "default:none" out.avi
+@end example
+
+@item
+从合适的输入设备录制原始 DV 数据并写入 out.dv：
+@example
+$ ffmpeg -f avfoundation -capture_raw_data true -i "zr100:none" out.dv
+@end example
+
+
+@end itemize
+
+@section decklink
+
+decklink 输入设备为 Blackmagic DeckLink 设备提供捕获功能。
+
+要启用此输入设备，你需要 Blackmagic DeckLink SDK，并需要使用适当的
+@code{--extra-cflags} 和 @code{--extra-ldflags} 进行配置。
+在 Windows 上，你需要通过 @command{widl} 运行 IDL 文件。
+
+DeckLink 对其支持的格式非常挑剔。输入的像素格式可以使用 @option{raw_format} 设置。
+帧率和视频大小必须使用 @command{-list_formats 1} 为你的设备确定。
+音频采样率始终为 48 kHz，通道数可以是 2、8 或 16。注意所有音频通道打包在一个音轨中。
+
+@subsection 选项
+
+@table @option
+
+@item list_devices
+如果设置为 @option{true}，打印设备列表并退出。
+默认为 @option{false}。此选项已弃用，请使用 ffmpeg 的 @code{-sources} 选项
+列出可用的输入设备。
+
+@item list_formats
+如果设置为 @option{true}，打印支持的格式列表并退出。
+默认为 @option{false}。
+
+@item format_code <FourCC>
+将输入视频格式设置为给定 FourCC 的格式。要查看设备支持的值，请使用
+@option{list_formats}。
+注意有一个 FourCC @option{'pal '} 也可以用作 @option{pal}（3 个字母）。
+如果硬件支持，默认行为是自动检测输入视频格式。
+
+@item raw_format
+设置捕获视频的像素格式。
+可用值有：
+@table @samp
+@item auto
+
+这是默认值，如果使用格式自动检测则表示 8 位 YUV 422 或 8 位 ARGB，否则为 8 位 YUV 422。
+
+@item uyvy422
+
+8 位 YUV 422。
+
+@item yuv422p10
+
+10 位 YUV 422。
+
+@item argb
+
+8 位 RGB。
+
+@item bgra
+
+8 位 RGB。
+
+@item rgb10
+
+10 位 RGB。
+
+@end table
+
+@item teletext_lines
+如果设置为非零值，将从垂直辅助数据中捕获额外的图文电视流。支持 SD PAL (576i) 和
+HD (1080i 或 1080p) 源。对于 HD 源，将解码 OP47 数据包。
+
+此选项是捕获的 SD PAL VBI 行的位掩码，具体是第 6 至 22 行，以及第 318 至 335 行。
+第 6 行是掩码中的 LSB。不包含图文电视信息的选定行将被忽略。你可以使用特殊常量
+@option{all} 选择所有可能的行，或使用 @option{standard} 跳过第 6、318 和 319 行，
+这些行与所有接收器不兼容。
+
+对于 SD 源，ffmpeg 需要使用 @code{--enable-libzvbi} 编译。对于 HD 源，
+在较旧的（4K 之前的）DeckLink 卡型号上，你必须以 10 位模式捕获。
+
+@item channels
+定义要捕获的音频通道数。必须是 @samp{2}、@samp{8} 或 @samp{16}。
+默认为 @samp{2}。
+
+@item duplex_mode
+设置 decklink 设备的双工/配置文件模式。必须是 @samp{unset}、@samp{half}、@samp{full}、
+@samp{one_sub_device_full}、@samp{one_sub_device_half}、@samp{two_sub_device_full}、
+@samp{four_sub_device_half}
+默认为 @samp{unset}。
+
+注意：DeckLink SDK 11.0 已将 duplex 属性替换为 profile 属性。
+对于 DeckLink Duo 2 和 DeckLink Quad 2，配置文件在使用相同连接器的任意 2 个子设备之间共享。
+对于 DeckLink 8K Pro，配置文件在所有 4 个子设备之间共享。因此 DeckLink 8K Pro 支持四种配置文件。
+
+DeckLink 8K Pro 的有效配置文件模式（DeckLink SDK >= 11.0）：
+@samp{one_sub_device_full}、@samp{one_sub_device_half}、@samp{two_sub_device_full}、
+@samp{four_sub_device_half}
+
+DeckLink Quad 2 和 DeckLink Duo 2 的有效配置文件模式：
+@samp{half}、@samp{full}
+
+@item timecode_format
+要包含在帧和视频流元数据中的时间码类型。必须是
+@samp{none}、@samp{rp188vitc}、@samp{rp188vitc2}、@samp{rp188ltc}、
+@samp{rp188hfr}、@samp{rp188any}、@samp{vitc}、@samp{vitc2} 或 @samp{serial}。
+默认为 @samp{none}（不包含）。
+
+为了正确支持 50/60 fps 时间码，对于 >30 fps 的内容，@samp{rp188any} 查询的时间码类型顺序
+是 HFR、VITC1、VITC2 和 LTC。注意这与 DeckLink API 使用的顺序略有不同，
+后者是 HFR、VITC1、LTC、VITC2。
+
+@item video_input
+设置视频输入源。必须是 @samp{unset}、@samp{sdi}、@samp{hdmi}、
+@samp{optical_sdi}、@samp{component}、@samp{composite} 或 @samp{s_video}。
+默认为 @samp{unset}。
+
+@item audio_input
+设置音频输入源。必须是 @samp{unset}、@samp{embedded}、
+@samp{aes_ebu}、@samp{analog}、@samp{analog_xlr}、@samp{analog_rca} 或
+@samp{microphone}。默认为 @samp{unset}。
+
+@item video_pts
+设置视频数据包时间戳源。必须是 @samp{video}、@samp{audio}、
+@samp{reference}、@samp{wallclock} 或 @samp{abs_wallclock}。
+默认为 @samp{video}。
+
+@item audio_pts
+设置音频数据包时间戳源。必须是 @samp{video}、@samp{audio}、
+@samp{reference}、@samp{wallclock} 或 @samp{abs_wallclock}。
+默认为 @samp{audio}。
+
+@item draw_bars
+如果设置为 @samp{true}，在信号丢失时绘制彩条。
+默认为 @samp{true}。
+此选项已弃用，请使用 @code{signal_loss_action} 选项。
+
+@item signal_loss_action
+设置信号丢失时要采取的操作。接受以下值之一：
+
+@table @option
+@item 1, none
+信号丢失时不做任何操作。这通常导致黑帧。
+@item 2, bars
+信号丢失时绘制彩条。仅支持 8 位输入信号。
+@item 3, repeat
+信号丢失时重复最后一个视频帧。
+@end table
+
+默认为 @samp{bars}。
+
+@item queue_size
+设置最大输入缓冲区大小（字节）。如果缓冲达到此值，传入的帧将被丢弃。
+默认为 @samp{1073741824}。
+
+@item audio_depth
+设置音频采样位深度。必须是 @samp{16} 或 @samp{32}。
+默认为 @samp{16}。
+
+@item decklink_copyts
+如果设置为 @option{true}，时间戳将按原样转发，不移除初始偏移。
+默认为 @option{false}。
+
+@item timestamp_align
+捕获开始时间对齐（秒）。如果设置为非零值，输入帧将被丢弃，直到系统时间戳与配置的值对齐。
+允许最多一帧持续时间的对齐差异。
+这对于为"N 路"冗余部署的 N 个不同硬件设备之间保持输入同步很有用。
+在使用此选项之前，不同硬件设备的系统时间应与 NTP 或 PTP 等协议同步。
+注意此方法并非万无一失。在某些边界情况下，由于操作系统中的线程调度抖动，输入同步可能不会发生。
+同步可能错误 1 帧，或在更罕见的情况下错误 @option{timestamp_align} 秒。
+默认为 @samp{0}。
+
+@item wait_for_tc (@emph{bool})
+丢弃帧直到收到带有时间码的帧。有时第一个输入帧不会收到串行时间码。
+如果发生这种情况，存储的流时间码将不准确。如果此选项设置为 @option{true}，
+输入帧将被丢弃直到收到带有时间码的帧。
+必须指定选项 @var{timecode_format}。
+默认为 @option{false}。
+
+@item enable_klv(@emph{bool})
+如果设置为 @option{true}，从 VANC 提取 KLV 数据并输出 KLV 数据包。
+KLV VANC 数据包根据 MID 和 PSC 字段连接，并聚合为一个 KLV 数据包。
+默认为 @option{false}。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+列出输入设备：
+@example
+ffmpeg -sources decklink
+@end example
+
+@item
+列出支持的格式：
+@example
+ffmpeg -f decklink -list_formats 1 -i 'Intensity Pro'
+@end example
+
+@item
+以 1080i50 捕获视频剪辑：
+@example
+ffmpeg -format_code Hi50 -f decklink -i 'Intensity Pro' -c:a copy -c:v copy output.avi
+@end example
+
+@item
+以 1080i50 10 位捕获视频剪辑：
+@example
+ffmpeg -raw_format yuv422p10 -format_code Hi50 -f decklink -i 'UltraStudio Mini Recorder' -c:a copy -c:v copy output.avi
+@end example
+
+@item
+以 1080i50 和 16 音频通道捕获视频剪辑：
+@example
+ffmpeg -channels 16 -format_code Hi50 -f decklink -i 'UltraStudio Mini Recorder' -c:a copy -c:v copy output.avi
+@end example
+
+@end itemize
+
+@section dshow
+
+Windows DirectShow 输入设备。
+
+当 FFmpeg 使用 mingw-w64 项目构建时，启用 DirectShow 支持。
+目前仅支持音频和视频设备。
+
+可以将多个设备作为单独的输入打开，也可以在同一个输入上打开，
+这应该可以改善它们之间的同步性。
+
+输入名称应采用以下格式：
+
+@example
+@var{TYPE}=@var{NAME}[:@var{TYPE}=@var{NAME}]
+@end example
+
+其中 @var{TYPE} 可以是 @var{audio} 或 @var{video}，
+@var{NAME} 是设备的名称或替代名称。
+
+@subsection 选项
+
+如果未指定选项，将使用设备的默认值。
+如果设备不支持请求的选项，打开将失败。
+
+@table @option
+
+@item video_size
+设置捕获视频的视频大小。
+
+@item framerate
+设置捕获视频的帧率。
+
+@item sample_rate
+设置捕获音频的采样率（Hz）。
+
+@item sample_size
+设置捕获音频的采样大小（位）。
+
+@item channels
+设置捕获音频的通道数。
+
+@item list_devices
+如果设置为 @option{true}，打印设备列表并退出。
+
+@item list_options
+如果设置为 @option{true}，打印所选设备的选项列表并退出。
+
+@item video_device_number
+为同名设备设置视频设备编号（从 0 开始，默认为 0）。
+
+@item audio_device_number
+为同名设备设置音频设备编号（从 0 开始，默认为 0）。
+
+@item pixel_format
+选择 DirectShow 使用的像素格式。仅当视频编解码器未设置或设置为 rawvideo 时才可设置。
+
+@item audio_buffer_size
+设置音频设备缓冲区大小（毫秒），这可能直接影响延迟（取决于设备）。
+默认使用音频设备的默认缓冲区大小（通常是 500ms 的某个倍数）。
+将此值设置得太低可能会降低性能。
+另请参见
+@url{http://msdn.microsoft.com/en-us/library/windows/desktop/dd377582(v=vs.85).aspx}
+
+@item video_pin_name
+按名称或替代名称选择要使用的视频捕获引脚。
+
+@item audio_pin_name
+按名称或替代名称选择要使用的音频捕获引脚。
+
+@item crossbar_video_input_pin_number
+为切换器设备选择视频输入引脚编号。这将被路由到切换器设备的视频解码器输出引脚。
+注意更改此值可能会影响将来的调用（设置新的默认值），直到系统重新启动。
+
+@item crossbar_audio_input_pin_number
+为切换器设备选择音频输入引脚编号。这将被路由到切换器设备的音频解码器输出引脚。
+注意更改此值可能会影响将来的调用（设置新的默认值），直到系统重新启动。
+
+@item show_video_device_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们手动更改视频滤镜属性和配置。
+注意对于切换器设备，有时可能需要调整此对话框中的值以在 PAL（25 fps）和
+NTSC（29.97）输入帧率、大小、隔行扫描等之间切换。更改这些值可以启用不同的
+扫描速率/帧率，并避免底部出现绿条、闪烁的扫描线等。
+注意对于某些设备，更改这些属性也可能影响将来的调用（设置新的默认值），直到系统重新启动。
+
+@item show_audio_device_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们手动更改音频滤镜属性和配置。
+
+@item show_video_crossbar_connection_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们在打开视频设备时手动修改切换器引脚路由。
+
+@item show_audio_crossbar_connection_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们在打开音频设备时手动修改切换器引脚路由。
+
+@item show_analog_tv_tuner_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们手动修改电视频道和频率。
+
+@item show_analog_tv_tuner_audio_dialog
+如果设置为 @option{true}，在捕获开始前，向最终用户弹出显示对话框，
+允许他们手动修改电视音频（如单声道与立体声、语言 A、B 或 C）。
+
+@item audio_device_load
+从文件加载音频捕获滤镜设备，而不是按名称搜索。如果滤镜支持其属性的序列化，
+它也可以加载其他参数。要使用此功能，必须指定音频捕获源，但它可以是任何东西，甚至是假的。
+
+@item audio_device_save
+将当前使用的音频捕获滤镜设备及其参数（如果滤镜支持）保存到文件。
+如果存在同名文件，它将被覆盖。
+
+@item video_device_load
+从文件加载视频捕获滤镜设备，而不是按名称搜索。如果滤镜支持其属性的序列化，
+它也可以加载其他参数。要使用此功能，必须指定视频捕获源，但它可以是任何东西，甚至是假的。
+
+@item video_device_save
+将当前使用的视频捕获滤镜设备及其参数（如果滤镜支持）保存到文件。
+如果存在同名文件，它将被覆盖。
+
+@item use_video_device_timestamps
+如果设置为 @option{false}，视频帧的时间戳将从挂钟派生，而不是使用捕获设备提供的时间戳。
+这允许解决提供不可靠时间戳的设备问题。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+打印 DirectShow 支持的设备列表并退出：
+@example
+$ ffmpeg -list_devices true -f dshow -i dummy
+@end example
+
+@item
+打开视频设备 @var{Camera}：
+@example
+$ ffmpeg -f dshow -i video="Camera"
+@end example
+
+@item
+打开名为 @var{Camera} 的第二个视频设备：
+@example
+$ ffmpeg -f dshow -video_device_number 1 -i video="Camera"
+@end example
+
+@item
+打开视频设备 @var{Camera} 和音频设备 @var{Microphone}：
+@example
+$ ffmpeg -f dshow -i video="Camera":audio="Microphone"
+@end example
+
+@item
+打印所选设备支持的选项列表并退出：
+@example
+$ ffmpeg -list_options true -f dshow -i video="Camera"
+@end example
+
+@end itemize
+
+@section fbdev
+
+Linux 帧缓冲区输入设备。
+
+Linux 帧缓冲区是一个与图形硬件无关的抽象层，用于在计算机显示器上显示图形，
+通常在控制台上。它通过文件设备节点访问，通常是 @file{/dev/fb0}。
+
+更多详细信息请阅读 Linux 源代码树中的文件 Documentation/fb/framebuffer.txt。
+
+另请参见 @url{http://linux-fbdev.sourceforge.net/} 和 fbset(1)。
+
+使用 @command{ffmpeg} 从帧缓冲设备 @file{/dev/fb0} 录制：
+@example
+ffmpeg -f fbdev -framerate 10 -i /dev/fb0 out.avi
+@end example
+
+你可以使用以下命令截取单个屏幕截图：
+@example
+ffmpeg -f fbdev -framerate 1 -i /dev/fb0 -frames:v 1 screenshot.jpeg
+@end example
+
+@subsection 选项
+
+@table @option
+
+@item framerate
+设置帧率。默认为 25。
+
+@end table
+
+@section gdigrab
+
+基于 Win32 GDI 的屏幕捕获设备。
+
+此设备允许你捕获 Windows 上显示区域的一个区域。
+
+输入文件名的选项包括：
+@example
+desktop
+@end example
+或
+@example
+title=@var{window_title}
+@end example
+或
+@example
+hwnd=@var{window_hwnd}
+@end example
+
+第一个选项将捕获整个桌面或桌面的固定区域。第二和第三个选项将捕获单个窗口的内容，
+无论其在屏幕上的位置如何。
+
+例如，使用 @command{ffmpeg} 抓取整个桌面：
+@example
+ffmpeg -f gdigrab -framerate 6 -i desktop out.mpg
+@end example
+
+抓取位置 @code{10,20} 处的 640x480 区域：
+@example
+ffmpeg -f gdigrab -framerate 6 -offset_x 10 -offset_y 20 -video_size vga -i desktop out.mpg
+@end example
+
+抓取名为 "Calculator" 的窗口内容：
+@example
+ffmpeg -f gdigrab -framerate 6 -i title=Calculator out.mpg
+@end example
+
+@subsection 选项
+
+@table @option
+@item draw_mouse
+指定是否绘制鼠标指针。使用值 @code{0} 不绘制指针。默认值为 @code{1}。
+
+@item framerate
+设置抓取帧率。默认值为 @code{ntsc}，对应 @code{30000/1001} 的帧率。
+
+@item show_region
+在屏幕上显示抓取区域。
+
+如果 @var{show_region} 指定为 @code{1}，则抓取区域将在屏幕上显示。
+使用此选项，如果只抓取屏幕的一部分，很容易知道正在抓取什么。
+
+注意 @var{show_region} 与抓取单个窗口内容不兼容。
+
+例如：
+@example
+ffmpeg -f gdigrab -show_region 1 -framerate 6 -video_size cif -offset_x 10 -offset_y 20 -i desktop out.mpg
+@end example
+
+@item video_size
+设置视频帧大小。如果选择 @file{desktop}，默认捕获全屏；
+如果选择 @file{title=@var{window_title}}，默认捕获完整窗口大小。
+
+@item offset_x
+当使用 @var{video_size} 捕获区域时，设置距屏幕或桌面左边缘的距离。
+
+注意偏移计算是从 Windows 上主显示器的左上角开始的。如果你有一个位于主显示器左侧的显示器，
+你需要使用负的 @var{offset_x} 值将区域移动到该显示器。
+
+@item offset_y
+当使用 @var{video_size} 捕获区域时，设置距屏幕或桌面上边缘的距离。
+
+注意偏移计算是从 Windows 上主显示器的左上角开始的。如果你有一个位于主显示器上方的显示器，
+你需要使用负的 @var{offset_y} 值将区域移动到该显示器。
+
+@end table
+
+@section iec61883
+
+使用 libiec61883 的 FireWire DV/HDV 输入设备。
+
+要启用此输入设备，你需要在系统上安装 libiec61883、libraw1394 和 libavc1394。
+使用配置选项 @code{--enable-libiec61883} 编译以启用此设备。
+
+iec61883 捕获设备支持从通过 IEEE1394 (FireWire) 连接的视频设备捕获，
+使用 libiec61883 和新的 Linux FireWire 堆栈 (juju)。这是 Linux 内核 2.6.37
+及更高版本中默认的 DV/HDV 输入方法，因为旧的 FireWire 堆栈已被移除。
+
+将要使用的 FireWire 端口指定为输入文件，或使用 "auto" 选择第一个连接的端口。
+
+@subsection 选项
+
+@table @option
+
+@item dvtype
+覆盖 DV/HDV 的自动检测。仅当自动检测不工作，或应禁止使用不同设备类型时才应使用此选项。
+将 DV 设备视为 HDV（或反之）将无法工作并导致未定义的行为。
+支持的值有 @option{auto}、@option{dv} 和 @option{hdv}。
+
+@item dvbuffer
+设置传入数据缓冲区的最大大小（帧）。对于 DV，这是精确值。
+对于 HDV，这不是帧精确的，因为 HDV 没有固定的帧大小。
+
+@item dvguid
+通过指定 GUID 选择捕获设备。仅从指定设备执行捕获，如果未找到给定 GUID 的设备则失败。
+当同时连接多个设备时，这对于选择输入很有用。
+查看 /sys/bus/firewire/devices 以找出 GUID。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+抓取并显示 FireWire DV/HDV 设备的输入。
+@example
+ffplay -f iec61883 -i auto
+@end example
+
+@item
+抓取并录制 FireWire DV/HDV 设备的输入，如果源是 HDV 则使用 100000 个数据包的数据包缓冲区。
+@example
+ffmpeg -f iec61883 -i auto -dvbuffer 100000 out.mpg
+@end example
+
+@end itemize
+
+@section jack
+
+JACK 输入设备。
+
+要在配置期间启用此输入设备，你需要在系统上安装 libjack。
+
+JACK 输入设备创建一个或多个 JACK 可写客户端，每个音频通道一个，
+名称为 @var{client_name}:input_@var{N}，其中 @var{client_name} 是应用程序提供的名称，
+@var{N} 是标识通道的数字。
+每个可写客户端将把获取的数据发送到 FFmpeg 输入设备。
+
+创建一个或多个 JACK 可读客户端后，你需要将它们连接到一个或多个 JACK 可写客户端。
+
+要连接或断开 JACK 客户端，你可以使用 @command{jack_connect} 和 @command{jack_disconnect}
+程序，或通过图形界面，例如使用 @command{qjackctl}。
+
+要列出 JACK 客户端及其属性，你可以调用命令 @command{jack_lsp}。
+
+以下是一个示例，展示如何使用 @command{ffmpeg} 捕获 JACK 可读客户端。
+@example
+# 创建名为 "ffmpeg" 的 JACK 可写客户端。
+$ ffmpeg -f jack -i ffmpeg -y out.wav
+
+# 启动示例 jack_metro 可读客户端。
+$ jack_metro -b 120 -d 0.2 -f 4000
+
+# 列出当前 JACK 客户端。
+$ jack_lsp -c
+system:capture_1
+system:capture_2
+system:playback_1
+system:playback_2
+ffmpeg:input_1
+metro:120_bpm
+
+# 将 metro 连接到 ffmpeg 可写客户端。
+$ jack_connect metro:120_bpm ffmpeg:input_1
+@end example
+
+更多信息请阅读：
+@url{http://jackaudio.org/}
+
+@subsection 选项
+
+@table @option
+
+@item channels
+设置通道数。默认为 2。
+
+@end table
+
+@section kmsgrab
+
+KMS 视频输入设备。
+
+捕获与指定 CRTC 或平面关联的 KMS 扫描输出帧缓冲区作为 DRM 对象，
+可以传递给其他硬件功能。
+
+需要 DRM master 或 CAP_SYS_ADMIN 才能运行。
+
+如果你不理解所有这些意味着什么，你可能不需要这个。请查看 @option{x11grab}。
+
+@subsection 选项
+
+@table @option
+
+@item device
+要捕获的 DRM 设备。默认为 @option{/dev/dri/card0}。
+
+@item format
+帧缓冲区的像素格式。如果你运行的是 Linux 5.7 或更高版本，可以自动检测，
+但对于较早的版本需要提供。默认为 @option{bgr0}，这是 Linux 控制台和 Xorg X 服务器最常用的格式。
+
+@item format_modifier
+在输出帧上发出的格式修饰符信号。这对于正确导入某些 API 是必要的。
+如果你运行的是 Linux 5.7 或更高版本，可以自动检测，
+但在较早版本中需要时需要显式提供。有关可能的值，请参阅 libdrm 文档。
+
+@item crtc_id
+用于定义捕获源的 KMS CRTC ID。给定 CRTC 上的第一个活动平面将被使用。
+
+@item plane_id
+用于定义捕获源的 KMS 平面 ID。如果既未指定 @option{crtc_id} 也未指定 @option{plane_id}，
+则默认为找到的第一个活动平面。
+
+@item framerate
+捕获的帧率。这不与任何页面翻转或帧缓冲区更改同步 - 它只定义帧缓冲区采样的间隔。
+比帧缓冲区更新率更快的采样将生成具有相同内容的独立帧。默认为 @code{30}。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+从第一个活动平面捕获，将结果下载到普通帧并编码。
+这仅当帧缓冲区既是线性的又是可映射的时才有效 - 否则结果可能是乱码或下载失败。
+@example
+ffmpeg -f kmsgrab -i - -vf 'hwdownload,format=bgr0' output.mp4
+@end example
+
+@item
+以 60fps 从 CRTC ID 42 捕获，将结果映射到 VAAPI，转换为 NV12 并编码为 H.264。
+@example
+ffmpeg -crtc_id 42 -framerate 60 -f kmsgrab -i - -vf 'hwmap=derive_device=vaapi,scale_vaapi=w=1920:h=1080:format=nv12' -c:v h264_vaapi output.mp4
+@end example
+
+@item
+要仅捕获平面的一部分，可以裁剪输出 - 这可用于捕获单个窗口，
+只要它具有已知的绝对位置和大小。例如，要捕获并编码 1920x1080 平面的中间四分之一：
+@example
+ffmpeg -f kmsgrab -i - -vf 'hwmap=derive_device=vaapi,crop=960:540:480:270,scale_vaapi=960:540:nv12' -c:v h264_vaapi output.mp4
+@end example
+
+@end itemize
+
+@section lavfi
+
+Libavfilter 输入虚拟设备。
+
+此输入设备从 libavfilter 滤镜图的打开输出端读取数据。
+
+对于每个滤镜图打开输出，输入设备将创建一个相应的流，映射到生成的输出。
+滤镜图通过选项 @option{graph} 指定。
+
+@subsection 选项
+
+@table @option
+
+@item graph
+指定用作输入的滤镜图。每个视频打开输出必须用形如 "out@var{N}" 的唯一字符串标记，
+其中 @var{N} 是从 0 开始的数字，对应设备生成的映射输入流。
+第一个未标记的输出自动分配给 "out0" 标签，但所有其他输出需要显式指定。
+
+可以将后缀 "+subcc" 附加到输出标签以创建一个额外的流，
+其中包含附加到该输出的隐藏字幕数据包（实验性；目前仅适用于 EIA-608 / CEA-708）。
+subcc 流在所有普通流之后创建，按照相应流的顺序。
+例如，如果有 "out19+subcc"、"out7+subcc" 和最多 "out42"，
+流 #43 是流 #7 的 subcc，流 #44 是流 #19 的 subcc。
+
+如果未指定，默认为输入设备指定的文件名。
+
+@item graph_file
+设置要读取并发送到其他滤镜的滤镜图文件名。滤镜图的语法与选项 @var{graph} 指定的相同。
+
+@item dumpgraph
+将图转储到 stderr。
+
+@end table
+
+@subsection 示例
+
+@itemize
+@item
+创建彩色视频流并使用 @command{ffplay} 播放：
+@example
+ffplay -f lavfi -graph "color=c=pink [out0]" dummy
+@end example
+
+@item
+与上一个示例相同，但使用文件名指定图描述，并省略 "out0" 标签：
+@example
+ffplay -f lavfi color=c=pink
+@end example
+
+@item
+创建三个不同的经过滤镜处理的视频测试源并播放：
+@example
+ffplay -f lavfi -graph "testsrc [out0]; testsrc,hflip [out1]; testsrc,negate [out2]" test3
+@end example
+
+@item
+使用 amovie 源从文件读取音频流并使用 @command{ffplay} 播放：
+@example
+ffplay -f lavfi "amovie=test.wav"
+@end example
+
+@item
+读取音频流和视频流并使用 @command{ffplay} 播放：
+@example
+ffplay -f lavfi "movie=test.avi[out0];amovie=test.wav[out1]"
+@end example
+
+@item
+将解码的帧转储为图像，将隐藏字幕转储到 RCWT 备份：
+@example
+ffmpeg -f lavfi -i "movie=test.ts[out0+subcc]" -map v frame%08d.png -map s -c copy -f rcwt subcc.bin
+@end example
+
+@end itemize
+
+@section libcdio
+
+基于 libcdio 的 Audio-CD 输入设备。
+
+要在配置期间启用此输入设备，你需要在系统上安装 libcdio。
+它需要配置选项 @code{--enable-libcdio}。
+
+此设备允许播放和从 Audio-CD 抓取。
+
+例如，使用 @command{ffmpeg} 复制 @file{/dev/sr0} 中的整个 Audio-CD，
+可以运行：
+@example
+ffmpeg -f libcdio -i /dev/sr0 cd.wav
+@end example
+
+@subsection 选项
+@table @option
+@item speed
+设置驱动器读取速度。默认值为 0。
+
+速度以 CD-ROM 速度单位指定。速度通过 libcdio @code{cdio_cddap_speed_set} 函数设置。
+在许多 CD-ROM 驱动器上，指定过大的值将导致使用最快速度。
+
+@item paranoia_mode
+设置 paranoia 恢复模式标志。它接受以下值之一：
+
+@table @samp
+@item disable
+@item verify
+@item overlap
+@item neverskip
+@item full
+@end table
+
+默认值为 @samp{disable}。
+
+有关可用恢复模式的更多信息，请参阅 paranoia 项目文档。
+@end table
+
+@section libdc1394
+
+IIDC1394 输入设备，基于 libdc1394 和 libraw1394。
+
+需要配置选项 @code{--enable-libdc1394}。
+
+@subsection 选项
+@table @option
+
+@item framerate
+设置帧率。默认为 @code{ntsc}，对应 @code{30000/1001} 的帧率。
+
+@item pixel_format
+选择像素格式。默认为 @code{uyvy422}。
+
+@item video_size
+设置视频大小，如 @code{640x480} 或 @code{hd720}。
+默认为 @code{qvga}。
+@end table
+
+@section openal
+
+OpenAL 输入设备在所有具有 OpenAL 1.1 实现的系统上提供音频捕获。
+
+要在配置期间启用此输入设备，你需要在系统上安装 OpenAL 头文件和库，
+并使用 @code{--enable-openal} 配置 FFmpeg。
+
+OpenAL 头文件和库应作为 OpenAL 实现的一部分提供，或作为额外下载（SDK）。
+根据你的安装，你可能需要通过 @code{--extra-cflags} 和 @code{--extra-ldflags} 指定额外标志，
+以允许构建系统定位 OpenAL 头文件和库。
+
+OpenAL 实现的不完整列表如下：
+
+@table @strong
+@item Creative
+官方 Windows 实现，为支持的设备提供硬件加速和软件回退。
+参见 @url{http://openal.org/}。
+@item OpenAL Soft
+便携、开源 (LGPL) 软件实现。包括 Windows、Linux、Solaris 和 BSD 操作系统上
+最常见声音 API 的后端。
+参见 @url{http://kcat.strangesoft.net/openal.html}。
+@item Apple
+OpenAL 是 Core Audio 的一部分，Core Audio 是官方的 Mac OS X 音频接口。
+参见 @url{http://developer.apple.com/technologies/mac/audio-and-video.html}
+@end table
+
+此设备允许从通过 OpenAL 处理的音频输入设备捕获。
+
+你需要在提供的文件名中指定要捕获的设备名称。如果提供空字符串，设备将自动选择默认设备。
+你可以使用选项 @var{list_devices} 获取支持的设备列表。
+
+@subsection 选项
+
+@table @option
+
+@item channels
+设置捕获音频的通道数。目前仅支持值 @option{1}（单声道）和 @option{2}（立体声）。
+默认为 @option{2}。
+
+@item sample_size
+设置捕获音频的采样大小（位）。目前仅支持值 @option{8} 和 @option{16}。
+默认为 @option{16}。
+
+@item sample_rate
+设置捕获音频的采样率（Hz）。
+默认为 @option{44.1k}。
+
+@item list_devices
+如果设置为 @option{true}，打印设备列表并退出。
+默认为 @option{false}。
+
+@end table
+
+@subsection 示例
+
+打印 OpenAL 支持的设备列表并退出：
+@example
+$ ffmpeg -list_devices true -f openal -i dummy out.ogg
+@end example
+
+从 OpenAL 设备 @file{DR-BT101 via PulseAudio} 捕获：
+@example
+$ ffmpeg -f openal -i 'DR-BT101 via PulseAudio' out.ogg
+@end example
+
+从默认设备捕获（注意空字符串 '' 作为文件名）：
+@example
+$ ffmpeg -f openal -i '' out.ogg
+@end example
+
+在同一个 @command{ffmpeg} 命令中同时从两个设备捕获，写入两个不同的文件：
+@example
+$ ffmpeg -f openal -i 'DR-BT101 via PulseAudio' out1.ogg -f openal -i 'ALSA Default' out2.ogg
+@end example
+注意：并非所有 OpenAL 实现都支持多个同时捕获 - 如果上述方法不工作，请尝试最新的 OpenAL Soft。
+
+@section oss
+
+开放声音系统（OSS）输入设备。
+
+提供给输入设备的文件名是表示 OSS 输入设备的设备节点，通常设置为 @file{/dev/dsp}。
+
+例如，使用 @command{ffmpeg} 从 @file{/dev/dsp} 抓取：
+@example
+ffmpeg -f oss -i /dev/dsp /tmp/oss.wav
+@end example
+
+有关 OSS 的更多信息，请参见：
+@url{http://manuals.opensound.com/usersguide/dsp.html}
+
+@subsection 选项
+
+@table @option
+
+@item sample_rate
+设置采样率（Hz）。默认为 48000。
+
+@item channels
+设置通道数。默认为 2。
+
+@end table
+
+@section pulse
+
+PulseAudio 输入设备。
+
+要启用此输出设备，你需要使用 @code{--enable-libpulse} 配置 FFmpeg。
+
+提供给输入设备的文件名是源设备或字符串 "default"。
+
+要列出 PulseAudio 源设备及其属性，你可以调用命令 @command{pactl list sources}。
+
+有关 PulseAudio 的更多信息，请参见 @url{http://www.pulseaudio.org}。
+
+@subsection 选项
+@table @option
+@item server
+连接到特定的 PulseAudio 服务器，由 IP 地址指定。
+未提供时使用默认服务器。
+
+@item name
+指定 PulseAudio 显示活动客户端时将使用的应用程序名称，
+默认为 @code{LIBAVFORMAT_IDENT} 字符串。
+
+@item stream_name
+指定 PulseAudio 显示活动流时将使用的流名称，默认为 "record"。
+
+@item sample_rate
+指定采样率（Hz），默认使用 48kHz。
+
+@item channels
+指定使用的通道，默认设置为 2（立体声）。
+
+@item frame_size
+此选项无效，已弃用。
+
+@item fragment_size
+指定 PulseAudio 中最小缓冲片段的大小（字节），它将影响音频延迟。
+默认设置为 50 ms 的数据量。
+
+@item wallclock
+使用当前时间设置初始 PTS。默认为 1。
+
+@end table
+
+@subsection 示例
+从默认设备录制流：
+@example
+ffmpeg -f pulse -i default /tmp/pulse.wav
+@end example
+
+@section sndio
+
+sndio 输入设备。
+
+要在配置期间启用此输入设备，你需要在系统上安装 libsndio。
+
+提供给输入设备的文件名是表示 sndio 输入设备的设备节点，通常设置为 @file{/dev/audio0}。
+
+例如，使用 @command{ffmpeg} 从 @file{/dev/audio0} 抓取：
+@example
+ffmpeg -f sndio -i /dev/audio0 /tmp/oss.wav
+@end example
+
+@subsection 选项
+
+@table @option
+
+@item sample_rate
+设置采样率（Hz）。默认为 48000。
+
+@item channels
+设置通道数。默认为 2。
+
+@end table
+
+@section video4linux2, v4l2
+
+Video4Linux2 输入视频设备。
+
+"v4l2" 可以用作 "video4linux2" 的别名。
+
+如果 FFmpeg 使用 v4l-utils 支持构建（使用 @code{--enable-libv4l2} 配置选项），
+可以通过 @code{-use_libv4l2} 输入设备选项使用它。
+
+要抓取的设备名称是文件设备节点，通常 Linux 系统在设备（例如 USB 网络摄像头）
+插入系统时会自动创建此类节点，名称形如 @file{/dev/video@var{N}}，
+其中 @var{N} 是与设备关联的数字。
+
+Video4Linux2 设备通常支持有限的 @var{width}x@var{height} 大小和帧率集合。
+你可以使用 @command{-list_formats all} 检查 Video4Linux2 设备支持哪些格式。
+某些设备（如电视卡）支持一种或多种标准。可以使用 @command{-list_standards all} 列出所有支持的标准。
+
+时间戳的时间基准是 1 微秒。根据内核版本和配置，时间戳可能来自实时时钟（起点在 Unix 纪元）
+或单调时钟（起点通常在启动时，不受 NTP 或手动更改时钟的影响）。
+可以使用 @option{-timestamps abs} 或 @option{-ts abs} 选项强制转换为实时时钟。
+
+以下是使用 @command{ffmpeg} 和 @command{ffplay} 的 video4linux2 设备的一些使用示例：
+@itemize
+@item
+列出 video4linux2 设备支持的格式：
+@example
+ffplay -f video4linux2 -list_formats all /dev/video0
+@end example
+
+@item
+抓取并显示 video4linux2 设备的输入：
+@example
+ffplay -f video4linux2 -framerate 30 -video_size hd720 /dev/video0
+@end example
+
+@item
+抓取并录制 video4linux2 设备的输入，保持之前设置的帧率和大小：
+@example
+ffmpeg -f video4linux2 -input_format mjpeg -i /dev/video0 out.mpeg
+@end example
+@end itemize
+
+有关 Video4Linux 的更多信息，请查看 @url{http://linuxtv.org/}。
+
+@subsection 选项
+
+@table @option
+@item standard
+设置标准。必须是支持的标准名称。要获取支持的标准列表，请使用 @option{list_standards} 选项。
+
+@item channel
+设置输入通道号。默认为 -1，表示使用之前选择的通道。
+
+@item video_size
+设置视频帧大小。参数必须是形如 @var{WIDTH}x@var{HEIGHT} 的字符串或有效的大小缩写。
+
+@item pixel_format
+选择像素格式（仅对原始视频输入有效）。
+
+@item input_format
+设置首选像素格式（对于原始视频）或编解码器名称。
+当有多种格式可用时，此选项允许选择输入格式。
+
+@item framerate
+设置首选视频帧率。
+
+@item list_formats
+列出可用格式（支持的像素格式、编解码器和帧大小）并退出。
+
+可用值有：
+@table @samp
+@item all
+显示所有可用（压缩和非压缩）格式。
+
+@item raw
+仅显示原始视频（非压缩）格式。
+
+@item compressed
+仅显示压缩格式。
+@end table
+
+@item list_standards
+列出支持的标准并退出。
+
+可用值有：
+@table @samp
+@item all
+显示所有支持的标准。
+@end table
+
+@item timestamps, ts
+设置抓取帧的时间戳类型。
+
+可用值有：
+@table @samp
+@item default
+使用内核提供的时间戳。
+
+@item abs
+使用绝对时间戳（挂钟）。
+
+@item mono2abs
+强制从单调时间戳转换为绝对时间戳。
+@end table
+
+默认值为 @code{default}。
+
+@item use_libv4l2
+使用 libv4l2 (v4l-utils) 转换函数。默认为 0。
+
+@end table
+
+@section vfwcap
+
+VfW (Video for Windows) 捕获输入设备。
+
+作为输入传递的文件名是捕获驱动程序编号，范围从 0 到 9。
+你可以使用 "list" 作为文件名来打印驱动程序列表。
+任何其他文件名将被解释为设备编号 0。
+
+@subsection 选项
+
+@table @option
+
+@item video_size
+设置视频帧大小。
+
+@item framerate
+设置抓取帧率。默认值为 @code{ntsc}，对应 @code{30000/1001} 的帧率。
+
+@end table
+
+@section x11grab
+
+X11 视频输入设备。
+
+要在配置期间启用此输入设备，你需要在系统上安装 libxcb。
+它将在配置期间自动检测。
+
+此设备允许捕获 X11 显示器的一个区域。
+
+作为输入传递的文件名具有以下语法：
+@example
+[@var{hostname}]:@var{display_number}.@var{screen_number}[+@var{x_offset},@var{y_offset}]
+@end example
+
+@var{hostname}:@var{display_number}.@var{screen_number} 指定要从中抓取的屏幕的 X11 显示名称。
+@var{hostname} 可以省略，默认为 "localhost"。环境变量 @env{DISPLAY} 包含默认显示名称。
+
+@var{x_offset} 和 @var{y_offset} 指定相对于 X11 屏幕左上角的抓取区域偏移。
+它们默认为 0。
+
+查看 X11 文档（例如 @command{man X}）以获取有关显示名称格式的更详细信息。
+
+使用 @command{xdpyinfo} 程序获取有关 X11 显示属性的基本信息（例如搜索 "name" 或 "dimensions"）。
+
+例如，使用 @command{ffmpeg} 从 @file{:0.0} 抓取：
+@example
+ffmpeg -f x11grab -framerate 25 -video_size cif -i :0.0 out.mpg
+@end example
+
+在位置 @code{10,20} 抓取：
+@example
+ffmpeg -f x11grab -framerate 25 -video_size cif -i :0.0+10,20 out.mpg
+@end example
+
+@subsection 选项
+
+@table @option
+@item select_region
+指定是否使用指针图形化选择抓取区域。
+值 @code{1} 提示用户通过点击并拖动图形化选择抓取区域。单击而不拖动将选择整个屏幕。
+宽度或高度为零的区域也将选择整个屏幕。此选项覆盖 @var{video_size}、@var{grab_x} 和
+@var{grab_y} 选项。默认值为 @code{0}。
+
+@item draw_mouse
+指定是否绘制鼠标指针。值 @code{0} 指定不绘制指针。默认值为 @code{1}。
+
+@item follow_mouse
+使抓取区域跟随鼠标。参数可以是 @code{centered} 或像素数 @var{PIXELS}。
+
+当指定为 "centered" 时，抓取区域跟随鼠标指针并将指针保持在区域中心；
+否则，仅当鼠标指针到达区域边缘的 @var{PIXELS}（大于零）以内时，区域才跟随。
+
+例如：
+@example
+ffmpeg -f x11grab -follow_mouse centered -framerate 25 -video_size cif -i :0.0 out.mpg
+@end example
+
+仅当鼠标指针到达边缘 100 像素以内时跟随：
+@example
+ffmpeg -f x11grab -follow_mouse 100 -framerate 25 -video_size cif -i :0.0 out.mpg
+@end example
+
+@item framerate
+设置抓取帧率。默认值为 @code{ntsc}，对应 @code{30000/1001} 的帧率。
+
+@item show_region
+在屏幕上显示抓取区域。
+
+如果 @var{show_region} 指定为 @code{1}，则抓取区域将在屏幕上显示。
+使用此选项，如果只抓取屏幕的一部分，很容易知道正在抓取什么。
+
+@item region_border
+如果使用 @option{-show_region 1}，则设置区域边框厚度。
+范围为 1 到 128，默认为 3（仅基于 XCB 的 x11grab）。
+
+例如：
+@example
+ffmpeg -f x11grab -show_region 1 -framerate 25 -video_size cif -i :0.0+10,20 out.mpg
+@end example
+
+使用 @var{follow_mouse}：
+@example
+ffmpeg -f x11grab -follow_mouse centered -show_region 1 -framerate 25 -video_size cif -i :0.0 out.mpg
+@end example
+
+@item window_id
+抓取此窗口，而不是整个屏幕。默认值为 0，映射到整个屏幕（根窗口）。
+
+窗口的 ID 可以使用 @command{xwininfo} 程序找到，可能需要使用 -tree 和 -root 选项。
+
+如果窗口稍后放大，新区域不会被录制。当窗口关闭、取消映射（即图标化）或缩小超过视频大小
+（默认为初始窗口大小）时，视频结束。
+
+此选项禁用选项 @option{follow_mouse} 和 @option{select_region}。
+
+@item video_size
+设置视频帧大小。默认为完整桌面或窗口。
+
+@item grab_x
+@item grab_y
+设置抓取区域坐标。它们表示为相对于 X11 窗口左上角的偏移，
+对应于设备名称中的 @var{x_offset} 和 @var{y_offset} 参数。
+两个选项的默认值均为 0。
+@end table
+
+@c man end INPUT DEVICES
+

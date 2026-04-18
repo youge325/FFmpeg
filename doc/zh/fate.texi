@@ -1,0 +1,239 @@
+\input texinfo @c -*- texinfo -*-
+@documentencoding UTF-8
+
+@settitle FFmpeg 自动化测试环境
+@titlepage
+@center @titlefont{FFmpeg 自动化测试环境}
+@end titlepage
+
+@node Top
+@top
+
+@contents
+
+@chapter 简介
+
+FATE 在客户端是一个扩展的回归测试套件，在服务端则是结果聚合和展示的工具。
+
+本文档的第一部分说明如何从 FFmpeg 源代码目录使用 FATE 来测试你的 ffmpeg 二进制文件。第二部分描述如何运行 FATE 将结果提交到 FFmpeg 的 FATE 服务器。
+
+你可以随时通过访问以下网站查看公开可见的 FATE 结果：
+
+@url{http://fate.ffmpeg.org/}
+
+所有向 FFmpeg 贡献源代码的人都特别建议查看此网站，因为可以看到某些平台上的某个测试是否由于他们最近的贡献而中断。这通常发生在开发者无法测试的平台上。
+
+本文档的第二部分描述如何运行 FATE 将结果提交到 FFmpeg 的 FATE 服务器。如果你想提交结果，请确保你的 CPU、操作系统和编译器组合尚未列在上述网站上。
+
+在第三部分，你可以找到 FATE makefile 目标和变量的完整列表。
+
+
+@chapter 从 FFmpeg 源代码目录使用 FATE
+
+如果你想在你的机器上运行 FATE，需要先配置 FFmpeg。
+你可以在配置时通过添加参数 @code{--samples=/path/to/fate-suite} 来指定样本位置。
+
+@example
+./configure --enable-somelib --samples=/path/to/fate-suite
+@end example
+
+成功配置后，你需要就地添加和/或更新样本：
+
+@example
+make fate-rsync
+@end example
+
+现在你可以运行 FATE 了：
+
+@example
+make fate
+@end example
+
+参见 @ref{makefile 变量} 获取可添加的参数列表。
+
+如果你在配置时没有设置样本路径，或者想在启动 FATE 前覆盖它，可以通过以下三种方式之一实现。
+
+通过设置 make 变量：
+
+@example
+make fate-rsync SAMPLES=/path/to/fate-suite
+make fate       SAMPLES=/path/to/fate-suite
+@end example
+
+或通过为当前会话设置环境变量：
+
+@example
+export FATE_SAMPLES=/path/to/fate-suite
+make fate-rsync
+make fate
+@end example
+
+或在单个命令前设置以进行隔离：
+
+@example
+FATE_SAMPLES=/path/to/fate-suite make fate-rsync
+FATE_SAMPLES=/path/to/fate-suite make fate
+@end example
+
+此变量也可以在你的 shell 配置文件中设置使其永久生效。
+
+@float NOTE
+不要在样本路径中使用 '~' 字符来表示主目录。由于 shell 的特殊处理，这会导致 FATE 失败。
+另外，在 Windows 上路径必须相对于构建路径，在此情况下就是 FFmpeg 源代码目录。
+@end float
+
+请注意某些断言默认是禁用的，因此在配置时注意设置 @option{--assert-level=<level>}，例如当寻求最高的测试覆盖率时：
+@example
+./configure --assert-level=2
+@end example
+注意提高断言级别可能会对性能产生影响。
+
+要获取完整的测试列表，运行以下命令：
+@example
+make fate-list
+@end example
+
+你可以通过指定列表中带有 @code{fate-} 前缀的相应元素来运行测试的子集，例如：
+@example
+make fate-ffprobe_compact fate-ffprobe_xml
+@end example
+
+这使得在失败时只运行少量测试更加容易，而无需运行完整的测试套件。
+
+要使用自定义包装器运行测试，将 @option{--target-exec} 传递给 @command{configure} 或设置 @var{TARGET_EXEC} Make 变量。
+
+
+@chapter 将结果提交到 FFmpeg 结果聚合服务器
+
+要将结果提交到服务器，你应该通过 FFmpeg 源代码中的 shell 脚本 @file{tests/fate.sh} 来运行 fate。此脚本需要以配置文件作为第一个参数来调用。
+
+@example
+tests/fate.sh /path/to/fate_config
+@end example
+
+在 @file{doc/fate_config.sh.template} 中可以找到一个带有注释说明各个配置变量的配置文件模板。
+
+@ifhtml
+上述配置模板也可以在这里获取：
+@verbatiminclude fate_config.sh.template
+@end ifhtml
+
+根据配置模板创建适合你需求的配置。@env{slot} 配置变量可以是任何尚未使用的字符串，但建议你按照以下模式命名 @samp{@var{arch}-@var{os}-@var{compiler}-@var{compiler version}}。配置文件本身将在 shell 脚本中被引用，因此可以使用所有 shell 特性。这使你能够根据构建需要设置环境。
+
+对于你的首次测试运行，@env{fate_recv} 变量应该为空或被注释掉。这将正常运行所有内容，只是不会向服务器提交结果。以下文件应该存在于配置文件中指定的 $workdir 中：
+
+@itemize
+    @item configure.log
+    @item compile.log
+    @item test.log
+    @item report
+    @item version
+@end itemize
+
+当一切正常工作后，你可以创建一个 SSH 密钥对并将公钥发送给 FATE 服务器管理员，联系邮箱为 @email{fate-admin@@ffmpeg.org}。
+
+配置你的 SSH 客户端在连接 FATE 服务器时使用该密钥进行公钥认证。也不要忘记验证服务器身份并接受其主机密钥。通常可以通过手动运行 SSH 客户端并在接受密钥后终止它来实现。FATE 服务器的指纹是：
+
+@table @samp
+@item RSA
+   d3:f1:83:97:a4:75:2b:a6:fb:d6:e8:aa:81:93:97:51
+@item ECDSA
+   76:9f:68:32:04:1e:d5:d4:ec:47:3f:dc:fc:18:17:86
+@end table
+
+如果你在连接 FATE 服务器时遇到问题，可以尝试使用一个或多个 @option{-v} 选项运行 @command{ssh} 命令。你应该会得到有关 SSH 配置和认证过程的详细输出。
+
+剩下的就是自动执行 fate.sh 脚本和同步样本目录。
+
+@chapter 向 fate 套件上传新样本
+
+如果你需要上传样本，请发送邮件到 samples-request。
+
+这是针对在 fate 套件服务器上有账户的开发者的。
+如果你上传新样本，请确保它们尽可能小，每个客户端的空间、网络带宽等都受益于更小的测试用例。
+同时请记住，较旧的检出使用现有的样本文件，这意味着在实践中通常不要替换、删除或覆盖文件，因为这很可能会破坏较旧的检出或发行版。
+此外，提交所需的所有样本应在推送前至少 24 小时上传。
+如果你需要一个账户来频繁上传样本，或者你希望通过这样做来帮助他人，请发送邮件到 ffmpeg-devel。
+
+@example
+#首先更新你的本地样本副本：
+rsync -vauL --chmod=Dg+s,Duo+x,ug+rw,o+r,o-w,+X fate-suite.ffmpeg.org:/home/samples/fate-suite/ ~/fate-suite
+
+#然后做一次模拟运行检查将上传什么：
+rsync -vanL --no-g --chmod=Dg+s,Duo+x,ug+rw,o+r,o-w,+X ~/fate-suite/ fate-suite.ffmpeg.org:/home/samples/fate-suite
+
+#上传文件：
+rsync -vaL  --no-g --chmod=Dg+s,Duo+x,ug+rw,o+r,o-w,+X ~/fate-suite/ fate-suite.ffmpeg.org:/home/samples/fate-suite
+@end example
+
+
+@chapter FATE makefile 目标和变量
+
+@section Makefile 目标
+
+@table @option
+@item fate-rsync
+下载/同步样本文件到配置的样本目录。
+
+@item fate-list
+将列出所有 fate/回归测试目标。
+
+@item fate-list-failing
+列出上次执行失败的 fate 测试。
+
+@item fate-clear-reports
+删除之前测试执行的测试报告（清除 fate-list-failing 中可能过时的结果）。
+
+@item fate
+运行 FATE 测试套件（需要 fate-suite 数据集）。
+@end table
+
+@section Makefile 变量
+@anchor{makefile 变量}
+
+@table @env
+@item V
+详细级别，可以设置为 0、1 或 2。
+    @itemize
+        @item 0：仅显示测试参数
+        @item 1：仅显示测试中使用的命令
+        @item 2：显示所有内容
+    @end itemize
+
+@item SAMPLES
+在 make 时指定或覆盖 FATE 样本的路径，仅在运行回归测试时有意义。
+
+@item THREADS
+指定运行回归测试时使用的线程数，对于检测线程相关的回归非常有用。
+
+此变量也可以设置为字符串 "random"，后面可选地跟一个数字，如 "random99"。这将使每个测试使用随机数量的线程。如果指定了数字，它将用作最大线程数，否则最大为 16。
+
+如果测试失败，使用的线程数将被写入错误文件。
+
+@item THREAD_TYPE
+指定要测试的线程策略，@samp{slice} 或 @samp{frame}，默认为 @samp{slice+frame}。
+
+@item CPUFLAGS
+指定 CPU 标志。
+
+@item TARGET_EXEC
+指定或覆盖用于运行测试的包装器。
+@env{TARGET_EXEC} 选项提供了一种在 @command{valgrind}、@command{qemu-user}、@command{wine} 中或通过 @command{ssh} 在远程目标上运行 FATE 的方式。
+
+@item GEN
+设置为 @samp{1} 以生成缺失或不匹配的参考文件。
+
+@item HWACCEL
+指定运行回归测试时使用的硬件加速，默认使用 @samp{none}。
+
+@item KEEP
+设置为 @samp{1} 以在测试成功时保留 fate 测试生成的临时文件。
+默认为 @samp{0}，即删除这些文件。测试失败时文件始终保留。
+
+@end table
+
+@section 示例
+
+@example
+make V=1 SAMPLES=/var/fate/samples THREADS=2 CPUFLAGS=mmx fate
+@end example

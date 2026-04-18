@@ -1,0 +1,21 @@
+@chapter 设备选项
+@c man begin DEVICE OPTIONS
+
+libavdevice 库提供与 libavformat 相同的接口。即，输入设备被视为解复用器（demuxer），
+输出设备被视为复用器（muxer），接口和通用设备选项与 libavformat 提供的相同
+（参见 ffmpeg-formats 手册）。
+
+此外，每个输入或输出设备可以支持所谓的私有选项，这些选项是特定于该组件的。
+
+可以通过在 FFmpeg 工具中指定 -@var{option} @var{value} 来设置选项，
+也可以在设备的 @code{AVFormatContext} 选项中显式设置值，
+或者使用 @file{libavutil/opt.h} API 进行程序化使用。
+
+@c man end DEVICE OPTIONS
+
+@ifclear config-writeonly
+@include indevs.texi
+@end ifclear
+@ifclear config-readonly
+@include outdevs.texi
+@end ifclear

@@ -18,25 +18,41 @@ MANPAGES1   = $(AVPROGS-yes:%=doc/%.1)    $(AVPROGS-yes:%=doc/%-all.1)    $(COMP
 MANPAGES3   = $(LIBRARIES-yes:%=doc/%.3)
 MANPAGES    = $(MANPAGES1) $(MANPAGES3)
 PODPAGES    = $(AVPROGS-yes:%=doc/%.pod)  $(AVPROGS-yes:%=doc/%-all.pod)  $(COMPONENTS-yes:%=doc/%.pod)  $(LIBRARIES-yes:%=doc/%.pod)
-HTMLPAGES   = $(AVPROGS-yes:%=doc/%.html) $(AVPROGS-yes:%=doc/%-all.html) $(COMPONENTS-yes:%=doc/%.html) $(LIBRARIES-yes:%=doc/%.html) \
-              doc/community.html                                        \
-              doc/developer.html                                        \
-              doc/faq.html                                              \
-              doc/fate.html                                             \
-              doc/general.html                                          \
-              doc/git-howto.html                                        \
-              doc/mailing-list-faq.html                                 \
-              doc/nut.html                                              \
-              doc/platform.html                                         \
-              doc/drawvg-reference.html                                 \
-              $(SRC_PATH)/doc/bootstrap.min.css                         \
-              $(SRC_PATH)/doc/style.min.css                             \
-              $(SRC_PATH)/doc/default.css                               \
+HTMLPAGES_EN = $(AVPROGS-yes:%=doc/en/%.html) $(AVPROGS-yes:%=doc/en/%-all.html) $(COMPONENTS-yes:%=doc/en/%.html) $(LIBRARIES-yes:%=doc/en/%.html) \
+			   doc/en/community.html                                        \
+			   doc/en/developer.html                                        \
+			   doc/en/faq.html                                              \
+			   doc/en/fate.html                                             \
+			   doc/en/general.html                                          \
+			   doc/en/git-howto.html                                        \
+			   doc/en/mailing-list-faq.html                                 \
+			   doc/en/nut.html                                              \
+			   doc/en/platform.html                                         \
+			   doc/en/drawvg-reference.html                                 \
+
+HTMLASSETS   = $(SRC_PATH)/doc/bootstrap.min.css                         \
+			   $(SRC_PATH)/doc/style.min.css                             \
+			   $(SRC_PATH)/doc/default.css                               \
+
+# Chinese (zh) HTML pages
+HTMLPAGES_ZH = $(AVPROGS-yes:%=doc/zh/%.html) $(AVPROGS-yes:%=doc/zh/%-all.html) $(COMPONENTS-yes:%=doc/zh/%.html) $(LIBRARIES-yes:%=doc/zh/%.html) \
+              doc/zh/community.html                                     \
+              doc/zh/developer.html                                     \
+              doc/zh/faq.html                                           \
+              doc/zh/fate.html                                          \
+              doc/zh/general.html                                       \
+              doc/zh/git-howto.html                                     \
+              doc/zh/mailing-list-faq.html                              \
+              doc/zh/nut.html                                           \
+              doc/zh/platform.html                                      \
+              doc/zh/drawvg-reference.html                              \
 
 TXTPAGES    = doc/fate.txt                                              \
 
 
-DOCS-$(CONFIG_HTMLPAGES) += $(HTMLPAGES)
+DOCS-$(CONFIG_HTMLPAGES) += $(HTMLPAGES_EN)
+DOCS-$(CONFIG_HTMLPAGES) += $(HTMLPAGES_ZH)
+DOCS-$(CONFIG_HTMLPAGES) += $(HTMLASSETS)
 DOCS-$(CONFIG_PODPAGES)  += $(PODPAGES)
 DOCS-$(CONFIG_MANPAGES)  += $(MANPAGES)
 DOCS-$(CONFIG_TXTPAGES)  += $(TXTPAGES)
@@ -63,25 +79,47 @@ $(GENTEXI): TAG = GENTEXI
 $(GENTEXI): doc/avoptions_%.texi: doc/print_options$(HOSTEXESUF)
 	$(M)doc/print_options$(HOSTEXESUF) $* > $@
 
-doc/%.html: TAG = HTML
-doc/%-all.html: TAG = HTML
+doc/en/%.html: TAG = HTML
+doc/en/%-all.html: TAG = HTML
 
 ifdef HAVE_MAKEINFO_HTML
-doc/%.html: doc/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI)
+doc/en/%.html: doc/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/en/
 	$(Q)$(TEXIDEP)
-	$(M)$(MAKEINFO) --html -I doc --no-split -D config-not-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+	$(M)FFMPEG_LANG=en $(MAKEINFO) --html -I doc --no-split -D config-not-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
 
-doc/%-all.html: doc/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI)
+doc/en/%-all.html: doc/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/en/
 	$(Q)$(TEXIDEP)
-	$(M)$(MAKEINFO) --html -I doc --no-split -D config-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+	$(M)FFMPEG_LANG=en $(MAKEINFO) --html -I doc --no-split -D config-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
 else
-doc/%.html: doc/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI)
+doc/en/%.html: doc/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/en/
 	$(Q)$(TEXIDEP)
-	$(M)texi2html -I doc -monolithic --D=config-not-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+	$(M)FFMPEG_LANG=en texi2html -I doc -monolithic --D=config-not-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
 
-doc/%-all.html: doc/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI)
+doc/en/%-all.html: doc/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/en/
 	$(Q)$(TEXIDEP)
-	$(M)texi2html -I doc -monolithic --D=config-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+	$(M)FFMPEG_LANG=en texi2html -I doc -monolithic --D=config-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+endif
+
+# Chinese HTML build rules
+doc/zh/%.html: TAG = HTML
+doc/zh/%-all.html: TAG = HTML
+
+ifdef HAVE_MAKEINFO_HTML
+doc/zh/%.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh makeinfo --html -I doc/zh -I doc --no-split -D config-not-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+
+doc/zh/%-all.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.pm $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh makeinfo --html -I doc/zh -I doc --no-split -D config-all --init-file=$(SRC_PATH)/doc/t2h.pm --output $@ $<
+else
+doc/zh/%.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh texi2html -I doc/zh -I doc -monolithic --D=config-not-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
+
+doc/zh/%-all.html: doc/zh/%.texi $(SRC_PATH)/doc/t2h.init $(GENTEXI) | doc/zh/
+	$(Q)$(TEXIDEP)
+	$(M)FFMPEG_LANG=zh texi2html -I doc/zh -I doc -monolithic --D=config-all --init-file $(SRC_PATH)/doc/t2h.init --output $@ $<
 endif
 
 doc/%.pod: TAG = POD
@@ -102,6 +140,12 @@ doc/%.3: doc/%.pod $(GENTEXI)
 
 $(DOCS) doc/doxy/html: | doc/
 
+doc/zh/:
+	$(Q)mkdir -p doc/zh
+
+doc/en/:
+	$(Q)mkdir -p doc/en
+
 DOXY_INPUT      = $(INSTHEADERS)
 DOXY_INPUT_DEPS = $(addprefix $(SRC_PATH)/, $(DOXY_INPUT)) ffbuild/config.mak
 
@@ -118,9 +162,13 @@ install-man:
 ifdef CONFIG_HTMLPAGES
 install-progs-$(CONFIG_DOC): install-html
 
-install-html: $(HTMLPAGES)
+install-html: $(HTMLPAGES_EN) $(HTMLPAGES_ZH)
 	$(Q)mkdir -p "$(DOCDIR)"
-	$(INSTALL) -m 644 $(HTMLPAGES) "$(DOCDIR)"
+	$(INSTALL) -m 644 $(HTMLASSETS) "$(DOCDIR)"
+	$(Q)mkdir -p "$(DOCDIR)/en"
+	$(INSTALL) -m 644 $(HTMLPAGES_EN) "$(DOCDIR)/en"
+	$(Q)mkdir -p "$(DOCDIR)/zh"
+	$(INSTALL) -m 644 $(HTMLPAGES_ZH) "$(DOCDIR)/zh"
 endif
 
 ifdef CONFIG_MANPAGES
@@ -151,8 +199,9 @@ distclean:: docclean
 
 docclean::
 	$(RM) $(CLEANSUFFIXES:%=doc/%)
-	$(RM) $(TXTPAGES) doc/*.html doc/*.pod doc/*.1 doc/*.3 doc/avoptions_*.texi
+	$(RM) $(TXTPAGES) doc/*.html doc/en/*.html doc/*.pod doc/*.1 doc/*.3 doc/avoptions_*.texi
 	$(RM) -r doc/doxy/html
+	$(RM) -r doc/zh/*.html
 
 -include $(wildcard $(DOCS:%=%.d))
 

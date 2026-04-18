@@ -1,0 +1,415 @@
+@chapter 输出设备
+@c man begin OUTPUT DEVICES
+
+输出设备是 FFmpeg 中的配置元素，可以将多媒体数据写入连接到系统的输出设备。
+
+在配置 FFmpeg 构建时，默认启用所有支持的输出设备。你可以使用配置选项
+"--list-outdevs" 列出所有可用的输出设备。
+
+你可以使用配置选项 "--disable-outdevs" 禁用所有输出设备，并使用选项
+"--enable-outdev=@var{OUTDEV}" 选择性地启用某个输出设备，或使用选项
+"--disable-outdev=@var{OUTDEV}" 禁用特定的输出设备。
+
+ff* 工具的 "-devices" 选项将显示已启用的输出设备列表。
+
+以下是当前可用输出设备的描述。
+
+@section alsa
+
+ALSA（高级 Linux 音频架构）输出设备。
+
+@subsection 示例
+
+@itemize
+@item
+在默认 ALSA 设备上播放文件：
+@example
+ffmpeg -i INPUT -f alsa default
+@end example
+
+@item
+在声卡 1、音频设备 7 上播放文件：
+@example
+ffmpeg -i INPUT -f alsa hw:1,7
+@end example
+@end itemize
+
+@section AudioToolbox
+
+AudioToolbox 输出设备。
+
+允许在 OSX 上原生输出到 CoreAudio 设备。
+
+输出文件名可以为空（或 @code{-}）以引用默认系统输出设备，
+或者是一个数字，引用使用以下方式显示的设备索引：@code{-list_devices true}。
+
+或者，可以使用索引选择音频输入设备：
+@option{
+    -audio_device_index <INDEX>
+}
+，这将覆盖输入文件名中给出的任何设备名称或索引。
+
+可以使用 @option{-list_devices true} 枚举所有可用设备，
+列出所有设备名称、UID 和相应的索引。
+
+@subsection 选项
+
+AudioToolbox 支持以下选项：
+
+@table @option
+
+@item -audio_device_index <INDEX>
+通过索引指定音频设备。覆盖输出文件名中给出的任何内容。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+打印支持的设备列表并输出正弦波到默认设备：
+@example
+$ ffmpeg -f lavfi -i sine=r=44100 -f audiotoolbox -list_devices true -
+@end example
+
+@item
+输出正弦波到索引为 2 的设备，覆盖任何输出文件名：
+@example
+$ ffmpeg -f lavfi -i sine=r=44100 -f audiotoolbox -audio_device_index 2 -
+@end example
+
+@end itemize
+
+@section caca
+
+CACA 输出设备。
+
+此输出设备允许在 CACA 窗口中显示视频流。
+每个应用程序只允许一个 CACA 窗口，因此在一个应用程序中只能有一个此输出设备的实例。
+
+要启用此输出设备，你需要使用 @code{--enable-libcaca} 配置 FFmpeg。
+libcaca 是一个输出文本而不是像素的图形库。
+
+有关 libcaca 的更多信息，请查看：
+@url{http://caca.zoy.org/wiki/libcaca}
+
+@subsection 选项
+
+@table @option
+
+@item window_title
+设置 CACA 窗口标题，如果未指定，默认为输出设备指定的文件名。
+
+@item window_size
+设置 CACA 窗口大小，可以是 @var{width}x@var{height} 形式的字符串或视频大小缩写。
+如果未指定，默认为输入视频的大小。
+
+@item driver
+设置显示驱动程序。
+
+@item algorithm
+设置抖动算法。抖动是必要的，因为正在渲染的图像通常比可用调色板有更多的颜色。
+接受的值可通过 @code{-list_dither algorithms} 列出。
+
+@item antialias
+设置抗锯齿方法。抗锯齿可以平滑渲染的图像并避免常见的阶梯效果。
+接受的值可通过 @code{-list_dither antialiases} 列出。
+
+@item charset
+设置渲染文本时将使用的字符集。
+接受的值可通过 @code{-list_dither charsets} 列出。
+
+@item color
+设置渲染文本时使用的颜色。
+接受的值可通过 @code{-list_dither colors} 列出。
+
+@item list_drivers
+如果设置为 @option{true}，打印可用驱动程序列表并退出。
+
+@item list_dither
+列出与参数相关的可用抖动选项。
+参数必须是 @code{algorithms}、@code{antialiases}、@code{charsets}、@code{colors} 之一。
+@end table
+
+@subsection 示例
+
+@itemize
+@item
+以下命令将 @command{ffmpeg} 输出显示在 CACA 窗口中，强制大小为 80x25：
+@example
+ffmpeg -i INPUT -c:v rawvideo -pix_fmt rgb24 -window_size 80x25 -f caca -
+@end example
+
+@item
+显示可用驱动程序列表并退出：
+@example
+ffmpeg -i INPUT -pix_fmt rgb24 -f caca -list_drivers true -
+@end example
+
+@item
+显示可用抖动颜色列表并退出：
+@example
+ffmpeg -i INPUT -pix_fmt rgb24 -f caca -list_dither colors -
+@end example
+@end itemize
+
+@section decklink
+
+decklink 输出设备为 Blackmagic DeckLink 设备提供播放功能。
+
+要启用此输出设备，你需要 Blackmagic DeckLink SDK，并需要使用适当的
+@code{--extra-cflags} 和 @code{--extra-ldflags} 进行配置。
+在 Windows 上，你需要通过 @command{widl} 运行 IDL 文件。
+
+DeckLink 对其支持的格式非常挑剔。像素格式始终为 uyvy422，
+帧率、场序和视频大小必须使用 @command{-list_formats 1} 为你的设备确定。
+音频采样率始终为 48 kHz。
+
+@subsection 选项
+
+@table @option
+
+@item list_devices
+如果设置为 @option{true}，打印设备列表并退出。
+默认为 @option{false}。此选项已弃用，请使用 ffmpeg 的 @code{-sinks} 选项
+列出可用的输出设备。
+
+@item list_formats
+如果设置为 @option{true}，打印支持的格式列表并退出。
+默认为 @option{false}。
+
+@item preroll
+视频预滚时间（秒）。
+默认为 @option{0.5}。
+
+@item duplex_mode
+设置 decklink 设备的双工/配置文件模式。必须是 @samp{unset}、@samp{half}、@samp{full}、
+@samp{one_sub_device_full}、@samp{one_sub_device_half}、@samp{two_sub_device_full}、
+@samp{four_sub_device_half}
+默认为 @samp{unset}。
+
+注意：DeckLink SDK 11.0 已将 duplex 属性替换为 profile 属性。
+对于 DeckLink Duo 2 和 DeckLink Quad 2，配置文件在使用相同连接器的任意 2 个子设备之间共享。
+对于 DeckLink 8K Pro，配置文件在所有 4 个子设备之间共享。因此 DeckLink 8K Pro 支持四种配置文件。
+
+DeckLink 8K Pro 的有效配置文件模式（DeckLink SDK >= 11.0）：
+@samp{one_sub_device_full}、@samp{one_sub_device_half}、@samp{two_sub_device_full}、
+@samp{four_sub_device_half}
+
+DeckLink Quad 2 和 DeckLink Duo 2 的有效配置文件模式：
+@samp{half}、@samp{full}
+
+@item timing_offset
+设置所用输出上的 genlock 定时像素偏移。
+默认为 @samp{unset}。
+
+@item link
+设置所用输出上的 SDI 视频链路配置。必须是
+@samp{unset}、@samp{single} 链路 SDI、@samp{dual} 链路 SDI 或 @samp{quad} 链路 SDI。
+默认为 @samp{unset}。
+
+@item sqd
+为四链路 SDI 输出启用方形分割四分模式。
+必须是 @samp{unset}、@samp{true} 或 @samp{false}。
+默认为 @option{unset}。
+
+@item level_a
+在所用输出上启用 SMPTE Level A 模式。
+必须是 @samp{unset}、@samp{true} 或 @samp{false}。
+默认为 @option{unset}。
+
+@item vanc_queue_size
+设置 VANC 数据的最大输出缓冲区大小（字节）。如果缓冲达到此值，
+传出的 VANC 数据将被丢弃。
+默认为 @samp{1048576}。
+
+@end table
+
+@subsection 示例
+
+@itemize
+
+@item
+列出输出设备：
+@example
+ffmpeg -sinks decklink
+@end example
+
+@item
+列出支持的格式：
+@example
+ffmpeg -i test.avi -f decklink -list_formats 1 'DeckLink Mini Monitor'
+@end example
+
+@item
+播放视频剪辑：
+@example
+ffmpeg -i test.avi -f decklink -pix_fmt uyvy422 'DeckLink Mini Monitor'
+@end example
+
+@item
+使用非标准帧率或视频大小播放视频剪辑：
+@example
+ffmpeg -i test.avi -f decklink -pix_fmt uyvy422 -s 720x486 -r 24000/1001 'DeckLink Mini Monitor'
+@end example
+
+@end itemize
+
+@section fbdev
+
+Linux 帧缓冲区输出设备。
+
+Linux 帧缓冲区是一个与图形硬件无关的抽象层，用于在计算机显示器上显示图形，
+通常在控制台上。它通过文件设备节点访问，通常是 @file{/dev/fb0}。
+
+更多详细信息请阅读 Linux 源代码树中的文件 @file{Documentation/fb/framebuffer.txt}。
+
+@subsection 选项
+@table @option
+
+@item xoffset
+@item yoffset
+设置左上角的 x/y 坐标。默认为 0。
+@end table
+
+@subsection 示例
+在帧缓冲设备 @file{/dev/fb0} 上播放文件。
+所需的像素格式取决于当前的帧缓冲区设置。
+@example
+ffmpeg -re -i INPUT -c:v rawvideo -pix_fmt bgra -f fbdev /dev/fb0
+@end example
+
+另请参见 @url{http://linux-fbdev.sourceforge.net/} 和 fbset(1)。
+
+@section oss
+
+OSS（开放声音系统）输出设备。
+
+@section pulse
+
+PulseAudio 输出设备。
+
+要启用此输出设备，你需要使用 @code{--enable-libpulse} 配置 FFmpeg。
+
+有关 PulseAudio 的更多信息，请参见 @url{http://www.pulseaudio.org}。
+
+@subsection 选项
+@table @option
+
+@item server
+连接到特定的 PulseAudio 服务器，由 IP 地址指定。
+未提供时使用默认服务器。
+
+@item name
+指定 PulseAudio 显示活动客户端时将使用的应用程序名称，
+默认为 @code{LIBAVFORMAT_IDENT} 字符串。
+
+@item stream_name
+指定 PulseAudio 显示活动流时将使用的流名称，
+默认设置为指定的输出名称。
+
+@item device
+指定要使用的设备。未提供时使用默认设备。
+可以使用命令 @command{pactl list sinks} 获取输出设备列表。
+
+@item buffer_size
+@item buffer_duration
+控制 PulseAudio 缓冲区的大小和持续时间。较小的缓冲区允许更多控制，
+但需要更频繁的更新。
+
+@option{buffer_size} 指定大小（字节），@option{buffer_duration} 指定持续时间（毫秒）。
+
+当提供两个选项时，使用最高值（使用流参数将持续时间重新计算为字节）。
+如果它们设置为 0（默认值），设备将使用默认的 PulseAudio 持续时间值。
+默认情况下，PulseAudio 将缓冲区持续时间设置为大约 2 秒。
+
+@item prebuf
+指定预缓冲大小（字节）。在缓冲区中至少有 @option{prebuf} 字节可用之前，
+服务器不会开始播放。默认情况下，此选项初始化为与 @option{buffer_size} 或
+@option{buffer_duration}（以较大者为准）相同的值。
+
+@item minreq
+指定最小请求大小（字节）。服务器不会从客户端请求少于 @option{minreq} 字节，
+而是等待缓冲区足够空闲以一次请求更多字节。建议不要设置此选项，
+这将使服务器将其初始化为服务器认为合理的值。
+
+@end table
+
+@subsection 示例
+在默认服务器的默认设备上播放文件：
+@example
+ffmpeg  -i INPUT -f pulse "stream name"
+@end example
+
+@section sndio
+
+sndio 音频输出设备。
+
+@section v4l2
+
+Video4Linux2 输出设备。
+
+@section xv
+
+XV (XVideo) 输出设备。
+
+此输出设备允许在 X Window 系统窗口中显示视频流。
+
+@subsection 选项
+
+@table @option
+@item display_name
+指定硬件显示名称，确定要使用的显示和通信域。
+
+显示名称或 DISPLAY 环境变量可以是以下格式的字符串：
+@var{hostname}[:@var{number}[.@var{screen_number}]]。
+
+@var{hostname} 指定显示器物理连接的主机名。@var{number} 指定该主机上的显示服务器编号。
+@var{screen_number} 指定该服务器上要使用的屏幕。
+
+如果未指定，默认为 DISPLAY 环境变量的值。
+
+例如，@code{dual-headed:0.1} 将指定名为 ``dual-headed'' 的机器上显示 0 的屏幕 1。
+
+有关显示名称格式的更详细信息，请查看 X11 规范。
+
+@item window_id
+当设置为非零值时，设备不创建新窗口，而是使用提供的 @var{window_id} 的现有窗口。
+默认情况下，此选项设置为零，设备创建自己的窗口。
+
+@item window_size
+设置创建的窗口大小，可以是 @var{width}x@var{height} 形式的字符串或视频大小缩写。
+如果未指定，默认为输入视频的大小。
+当设置了 @var{window_id} 时忽略此选项。
+
+@item window_x
+@item window_y
+设置创建的窗口的 X 和 Y 窗口偏移。它们都默认设置为 0。
+这些值可能被窗口管理器忽略。
+当设置了 @var{window_id} 时忽略此选项。
+
+@item window_title
+设置窗口标题，如果未指定，默认为输出设备指定的文件名。
+当设置了 @var{window_id} 时忽略此选项。
+@end table
+
+有关 XVideo 的更多信息，请参见 @url{http://www.x.org/}。
+
+@subsection 示例
+
+@itemize
+@item
+使用 @command{ffmpeg} 同时解码、显示和编码视频输入：
+@example
+ffmpeg -i INPUT OUTPUT -f xv display
+@end example
+
+@item
+解码输入视频并显示到多个 X11 窗口：
+@example
+ffmpeg -i INPUT -f xv normal -vf negate -f xv negated
+@end example
+@end itemize
+
+@c man end OUTPUT DEVICES

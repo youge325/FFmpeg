@@ -1,0 +1,1070 @@
+@chapter 语法
+@c man begin SYNTAX
+
+本节介绍 FFmpeg 库和工具所采用的语法和格式。
+
+@anchor{quoting_and_escaping}
+@section 引用和转义
+
+除非另有明确说明，FFmpeg 采用以下引用和转义机制。适用以下规则：
+
+@itemize
+@item
+@samp{'} 和 @samp{\} 是特殊字符（分别用于引用和转义）。
+此外，根据使用转义和引用的特定语法，可能还有其他特殊字符。
+
+@item
+特殊字符通过在其前面加上 @samp{\} 来转义。
+
+@item
+@samp{''} 之间的所有字符都按字面意思包含在解析的字符串中。
+引号字符 @samp{'} 本身不能被引用，因此您可能需要关闭引号并转义它。
+
+@item
+前导和尾部空格（除非被转义或引用）将从解析的字符串中删除。
+@end itemize
+
+请注意，在使用命令行或脚本时，您可能需要添加第二级转义，
+这取决于所采用的 shell 语言的语法。
+
+@file{libavutil/avstring.h} 中定义的函数 @code{av_get_token} 可用于
+解析根据上述规则引用或转义的令牌。
+
+FFmpeg 源代码树中的工具 @file{tools/ffescape} 可用于
+在脚本中自动引用或转义字符串。
+
+@subsection 示例
+
+@itemize
+@item
+转义包含 @code{'} 特殊字符的字符串 @code{Crime d'Amour}：
+@example
+Crime d\'Amour
+@end example
+
+@item
+上面的字符串包含引号，因此在引用它时需要转义 @code{'}：
+@example
+'Crime d'\''Amour'
+@end example
+
+@item
+使用引用包含前导或尾部空格：
+@example
+'  this string starts and ends with whitespaces  '
+@end example
+
+@item
+转义和引用可以混合使用：
+@example
+' The string '\'string\'' is a string '
+@end example
+
+@item
+要包含字面意义的 @samp{\}，您可以使用转义或引用：
+@example
+'c:\foo' can be written as c:\\foo
+@end example
+@end itemize
+
+@anchor{date syntax}
+@section 日期
+
+接受的语法为：
+@example
+[(YYYY-MM-DD|YYYYMMDD)[T|t| ]]((HH:MM:SS[.m...]]])|(HHMMSS[.m...]]]))[Z]
+now
+@end example
+
+如果值为 "now"，则取当前时间。
+
+除非附加 Z，否则时间为本地时间，在这种情况下将解释为 UTC。
+如果未指定年-月-日部分，则取当前的年-月-日。
+
+@anchor{time duration syntax}
+@section 时间长度
+
+有两种接受的语法用于表示时间长度。
+
+@example
+[-][@var{HH}:]@var{MM}:@var{SS}[.@var{m}...]
+@end example
+
+@var{HH} 表示小时数，@var{MM} 表示分钟数（最多 2 位），
+@var{SS} 表示秒数（最多 2 位）。末尾的 @var{m} 表示 @var{SS} 的小数部分。
+
+@emph{或者}
+
+@example
+[-]@var{S}+[.@var{m}...][s|ms|us]
+@end example
+
+@var{S} 表示秒数，带有可选的小数部分 @var{m}。
+可选的字面后缀 @samp{s}、@samp{ms} 或 @samp{us}
+分别表示将值解释为秒、毫秒或微秒。
+
+在两种表达式中，可选的 @samp{-} 表示负时间长度。
+
+@subsection 示例
+
+以下示例都是有效的时间长度：
+
+@table @samp
+@item 55
+55 秒
+
+@item 0.2
+0.2 秒
+
+@item 200ms
+200 毫秒，即 0.2 秒
+
+@item 200000us
+200000 微秒，即 0.2 秒
+
+@item 12:03:45
+12 小时 03 分钟 45 秒
+
+@item 23.189
+23.189 秒
+@end table
+
+@anchor{video size syntax}
+@section 视频尺寸
+指定源视频的尺寸，可以是 @var{width}x@var{height} 格式的字符串，
+或尺寸缩写的名称。
+
+识别以下缩写：
+@table @samp
+@item ntsc
+720x480
+@item pal
+720x576
+@item qntsc
+352x240
+@item qpal
+352x288
+@item sntsc
+640x480
+@item spal
+768x576
+@item film
+352x240
+@item ntsc-film
+352x240
+@item sqcif
+128x96
+@item qcif
+176x144
+@item cif
+352x288
+@item 4cif
+704x576
+@item 16cif
+1408x1152
+@item qqvga
+160x120
+@item qvga
+320x240
+@item vga
+640x480
+@item svga
+800x600
+@item xga
+1024x768
+@item uxga
+1600x1200
+@item qxga
+2048x1536
+@item sxga
+1280x1024
+@item qsxga
+2560x2048
+@item hsxga
+5120x4096
+@item wvga
+852x480
+@item wxga
+1366x768
+@item wsxga
+1600x1024
+@item wuxga
+1920x1200
+@item woxga
+2560x1600
+@item wqsxga
+3200x2048
+@item wquxga
+3840x2400
+@item whsxga
+6400x4096
+@item whuxga
+7680x4800
+@item cga
+320x200
+@item ega
+640x350
+@item hd480
+852x480
+@item hd720
+1280x720
+@item hd1080
+1920x1080
+@item 2k
+2048x1080
+@item 2kflat
+1998x1080
+@item 2kscope
+2048x858
+@item 4k
+4096x2160
+@item 4kflat
+3996x2160
+@item 4kscope
+4096x1716
+@item nhd
+640x360
+@item hqvga
+240x160
+@item wqvga
+400x240
+@item fwqvga
+432x240
+@item hvga
+480x320
+@item qhd
+960x540
+@item 2kdci
+2048x1080
+@item 4kdci
+4096x2160
+@item uhd2160
+3840x2160
+@item uhd4320
+7680x4320
+@end table
+
+@anchor{video rate syntax}
+@section 视频帧率
+
+指定视频的帧率，表示为每秒生成的帧数。
+它必须是 @var{frame_rate_num}/@var{frame_rate_den} 格式的字符串、
+整数、浮点数或有效的视频帧率缩写。
+
+识别以下缩写：
+@table @samp
+@item ntsc
+30000/1001
+@item pal
+25/1
+@item qntsc
+30000/1001
+@item qpal
+25/1
+@item sntsc
+30000/1001
+@item spal
+25/1
+@item film
+24/1
+@item ntsc-film
+24000/1001
+@end table
+
+@anchor{ratio syntax}
+@section 比率
+
+比率可以表示为表达式，或以 @var{numerator}:@var{denominator} 的形式。
+
+请注意，具有无穷大（1/0）或负值的比率被认为是有效的，
+因此如果您想排除这些值，应检查返回的值。
+
+未定义的值可以使用 "0:0" 字符串表示。
+
+@anchor{color syntax}
+@section 颜色
+
+可以是下面定义的颜色名称（不区分大小写匹配）或
+@code{[0x|#]RRGGBB[AA]} 序列，后面可能跟着 @@ 和表示 alpha 分量的字符串。
+
+alpha 分量可以是由 "0x" 后跟十六进制数或 0.0 到 1.0 之间的十进制数组成的字符串，
+表示不透明度值（@samp{0x00} 或 @samp{0.0} 表示完全透明，
+@samp{0xff} 或 @samp{1.0} 表示完全不透明）。
+如果未指定 alpha 分量，则假定为 @samp{0xff}。
+
+字符串 @samp{random} 将产生随机颜色。
+
+识别以下颜色名称：
+@table @samp
+@item AliceBlue
+0xF0F8FF
+@item AntiqueWhite
+0xFAEBD7
+@item Aqua
+0x00FFFF
+@item Aquamarine
+0x7FFFD4
+@item Azure
+0xF0FFFF
+@item Beige
+0xF5F5DC
+@item Bisque
+0xFFE4C4
+@item Black
+0x000000
+@item BlanchedAlmond
+0xFFEBCD
+@item Blue
+0x0000FF
+@item BlueViolet
+0x8A2BE2
+@item Brown
+0xA52A2A
+@item BurlyWood
+0xDEB887
+@item CadetBlue
+0x5F9EA0
+@item Chartreuse
+0x7FFF00
+@item Chocolate
+0xD2691E
+@item Coral
+0xFF7F50
+@item CornflowerBlue
+0x6495ED
+@item Cornsilk
+0xFFF8DC
+@item Crimson
+0xDC143C
+@item Cyan
+0x00FFFF
+@item DarkBlue
+0x00008B
+@item DarkCyan
+0x008B8B
+@item DarkGoldenRod
+0xB8860B
+@item DarkGray
+0xA9A9A9
+@item DarkGreen
+0x006400
+@item DarkKhaki
+0xBDB76B
+@item DarkMagenta
+0x8B008B
+@item DarkOliveGreen
+0x556B2F
+@item Darkorange
+0xFF8C00
+@item DarkOrchid
+0x9932CC
+@item DarkRed
+0x8B0000
+@item DarkSalmon
+0xE9967A
+@item DarkSeaGreen
+0x8FBC8F
+@item DarkSlateBlue
+0x483D8B
+@item DarkSlateGray
+0x2F4F4F
+@item DarkTurquoise
+0x00CED1
+@item DarkViolet
+0x9400D3
+@item DeepPink
+0xFF1493
+@item DeepSkyBlue
+0x00BFFF
+@item DimGray
+0x696969
+@item DodgerBlue
+0x1E90FF
+@item FireBrick
+0xB22222
+@item FloralWhite
+0xFFFAF0
+@item ForestGreen
+0x228B22
+@item Fuchsia
+0xFF00FF
+@item Gainsboro
+0xDCDCDC
+@item GhostWhite
+0xF8F8FF
+@item Gold
+0xFFD700
+@item GoldenRod
+0xDAA520
+@item Gray
+0x808080
+@item Green
+0x008000
+@item GreenYellow
+0xADFF2F
+@item HoneyDew
+0xF0FFF0
+@item HotPink
+0xFF69B4
+@item IndianRed
+0xCD5C5C
+@item Indigo
+0x4B0082
+@item Ivory
+0xFFFFF0
+@item Khaki
+0xF0E68C
+@item Lavender
+0xE6E6FA
+@item LavenderBlush
+0xFFF0F5
+@item LawnGreen
+0x7CFC00
+@item LemonChiffon
+0xFFFACD
+@item LightBlue
+0xADD8E6
+@item LightCoral
+0xF08080
+@item LightCyan
+0xE0FFFF
+@item LightGoldenRodYellow
+0xFAFAD2
+@item LightGreen
+0x90EE90
+@item LightGrey
+0xD3D3D3
+@item LightPink
+0xFFB6C1
+@item LightSalmon
+0xFFA07A
+@item LightSeaGreen
+0x20B2AA
+@item LightSkyBlue
+0x87CEFA
+@item LightSlateGray
+0x778899
+@item LightSteelBlue
+0xB0C4DE
+@item LightYellow
+0xFFFFE0
+@item Lime
+0x00FF00
+@item LimeGreen
+0x32CD32
+@item Linen
+0xFAF0E6
+@item Magenta
+0xFF00FF
+@item Maroon
+0x800000
+@item MediumAquaMarine
+0x66CDAA
+@item MediumBlue
+0x0000CD
+@item MediumOrchid
+0xBA55D3
+@item MediumPurple
+0x9370D8
+@item MediumSeaGreen
+0x3CB371
+@item MediumSlateBlue
+0x7B68EE
+@item MediumSpringGreen
+0x00FA9A
+@item MediumTurquoise
+0x48D1CC
+@item MediumVioletRed
+0xC71585
+@item MidnightBlue
+0x191970
+@item MintCream
+0xF5FFFA
+@item MistyRose
+0xFFE4E1
+@item Moccasin
+0xFFE4B5
+@item NavajoWhite
+0xFFDEAD
+@item Navy
+0x000080
+@item OldLace
+0xFDF5E6
+@item Olive
+0x808000
+@item OliveDrab
+0x6B8E23
+@item Orange
+0xFFA500
+@item OrangeRed
+0xFF4500
+@item Orchid
+0xDA70D6
+@item PaleGoldenRod
+0xEEE8AA
+@item PaleGreen
+0x98FB98
+@item PaleTurquoise
+0xAFEEEE
+@item PaleVioletRed
+0xD87093
+@item PapayaWhip
+0xFFEFD5
+@item PeachPuff
+0xFFDAB9
+@item Peru
+0xCD853F
+@item Pink
+0xFFC0CB
+@item Plum
+0xDDA0DD
+@item PowderBlue
+0xB0E0E6
+@item Purple
+0x800080
+@item Red
+0xFF0000
+@item RosyBrown
+0xBC8F8F
+@item RoyalBlue
+0x4169E1
+@item SaddleBrown
+0x8B4513
+@item Salmon
+0xFA8072
+@item SandyBrown
+0xF4A460
+@item SeaGreen
+0x2E8B57
+@item SeaShell
+0xFFF5EE
+@item Sienna
+0xA0522D
+@item Silver
+0xC0C0C0
+@item SkyBlue
+0x87CEEB
+@item SlateBlue
+0x6A5ACD
+@item SlateGray
+0x708090
+@item Snow
+0xFFFAFA
+@item SpringGreen
+0x00FF7F
+@item SteelBlue
+0x4682B4
+@item Tan
+0xD2B48C
+@item Teal
+0x008080
+@item Thistle
+0xD8BFD8
+@item Tomato
+0xFF6347
+@item Turquoise
+0x40E0D0
+@item Violet
+0xEE82EE
+@item Wheat
+0xF5DEB3
+@item White
+0xFFFFFF
+@item WhiteSmoke
+0xF5F5F5
+@item Yellow
+0xFFFF00
+@item YellowGreen
+0x9ACD32
+@end table
+
+@anchor{channel layout syntax}
+@section 声道布局
+
+声道布局指定多声道音频流中声道的空间排列。
+要指定声道布局，FFmpeg 使用一种特殊的语法。
+
+单独的声道由 ID 标识，如下表所示：
+@table @samp
+@item FL
+前左
+@item FR
+前右
+@item FC
+前中
+@item LFE
+低频效果
+@item BL
+后左
+@item BR
+后右
+@item FLC
+前左中
+@item FRC
+前右中
+@item BC
+后中
+@item SL
+侧左
+@item SR
+侧右
+@item TC
+顶部中心
+@item TFL
+顶部前左
+@item TFC
+顶部前中
+@item TFR
+顶部前右
+@item TBL
+顶部后左
+@item TBC
+顶部后中
+@item TBR
+顶部后右
+@item DL
+下混左
+@item DR
+下混右
+@item WL
+宽左
+@item WR
+宽右
+@item SDL
+环绕直接左
+@item SDR
+环绕直接右
+@item LFE2
+低频效果 2
+@end table
+
+可以使用以下标识符指定标准声道布局组合：
+@table @samp
+@item mono
+FC
+@item stereo
+FL+FR
+@item 2.1
+FL+FR+LFE
+@item 3.0
+FL+FR+FC
+@item 3.0(back)
+FL+FR+BC
+@item 4.0
+FL+FR+FC+BC
+@item quad
+FL+FR+BL+BR
+@item quad(side)
+FL+FR+SL+SR
+@item 3.1
+FL+FR+FC+LFE
+@item 5.0
+FL+FR+FC+BL+BR
+@item 5.0(side)
+FL+FR+FC+SL+SR
+@item 4.1
+FL+FR+FC+LFE+BC
+@item 5.1
+FL+FR+FC+LFE+BL+BR
+@item 5.1(side)
+FL+FR+FC+LFE+SL+SR
+@item 6.0
+FL+FR+FC+BC+SL+SR
+@item 6.0(front)
+FL+FR+FLC+FRC+SL+SR
+@item 3.1.2
+FL+FR+FC+LFE+TFL+TFR
+@item hexagonal
+FL+FR+FC+BL+BR+BC
+@item 6.1
+FL+FR+FC+LFE+BC+SL+SR
+@item 6.1
+FL+FR+FC+LFE+BL+BR+BC
+@item 6.1(front)
+FL+FR+LFE+FLC+FRC+SL+SR
+@item 7.0
+FL+FR+FC+BL+BR+SL+SR
+@item 7.0(front)
+FL+FR+FC+FLC+FRC+SL+SR
+@item 7.1
+FL+FR+FC+LFE+BL+BR+SL+SR
+@item 7.1(wide)
+FL+FR+FC+LFE+BL+BR+FLC+FRC
+@item 7.1(wide-side)
+FL+FR+FC+LFE+FLC+FRC+SL+SR
+@item 5.1.2
+FL+FR+FC+LFE+BL+BR+TFL+TFR
+@item octagonal
+FL+FR+FC+BL+BR+BC+SL+SR
+@item cube
+FL+FR+BL+BR+TFL+TFR+TBL+TBR
+@item 5.1.4
+FL+FR+FC+LFE+BL+BR+TFL+TFR+TBL+TBR
+@item 7.1.2
+FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR
+@item 7.1.4
+FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR+TBL+TBR
+@item 7.2.3
+FL+FR+FC+LFE+BL+BR+SL+SR+TFL+TFR+TBC+LFE2
+@item 9.1.4
+FL+FR+FC+LFE+BL+BR+FLC+FRC+SL+SR+TFL+TFR+TBL+TBR
+@item 9.1.6
+FL+FR+FC+LFE+BL+BR+FLC+FRC+SL+SR+TFL+TFR+TBL+TBR+TSL+TSR
+@item hexadecagonal
+FL+FR+FC+BL+BR+BC+SL+SR+WL+WR+TBL+TBR+TBC+TFC+TFL+TFR
+@item binaural
+BIL+BIR
+@item downmix
+DL+DR
+@item 22.2
+FL+FR+FC+LFE+BL+BR+FLC+FRC+BC+SL+SR+TC+TFL+TFC+TFR+TBL+TBC+TBR+LFE2+TSL+TSR+BFC+BFL+BFR
+@end table
+
+自定义声道布局可以指定为由 '+' 分隔的术语序列。
+每个术语可以是：
+@itemize
+@item
+单个声道的名称（例如 @samp{FL}、@samp{FR}、@samp{FC}、@samp{LFE} 等），
+每个声道可选地在 '@@' 后包含自定义名称
+（例如 @samp{FL@@Left}、@samp{FR@@Right}、@samp{FC@@Center}、@samp{LFE@@Low_Frequency} 等）
+@end itemize
+
+标准声道布局可以通过以下方式指定：
+@itemize
+@item
+单个声道的名称（例如 @samp{FL}、@samp{FR}、@samp{FC}、@samp{LFE} 等）
+
+@item
+标准声道布局的名称（例如 @samp{mono}、@samp{stereo}、@samp{4.0}、@samp{quad}、@samp{5.0} 等）
+
+@item
+以十进制表示的声道数，后跟 'c'，产生该声道数的默认声道布局
+（参见函数 @code{av_channel_layout_default}）。
+请注意，并非所有声道数都有默认布局。
+
+@item
+以十进制表示的声道数，后跟 'C'，产生具有指定声道数的未知声道布局。
+请注意，并非所有声道布局规格字符串都支持未知声道布局。
+
+@item
+以 "0x" 开头的十六进制声道布局掩码
+（参见 @file{libavutil/channel_layout.h} 中的 @code{AV_CH_*} 宏）。
+@end itemize
+
+在 libavutil 版本 53 之前，用于指定声道数的尾随字符 "c" 是可选的，
+但现在是必需的，而声道布局掩码也可以指定为十进制数
+（当且仅当后面没有跟 "c" 或 "C" 时）。
+
+另请参见 @file{libavutil/channel_layout.h} 中定义的函数 @code{av_channel_layout_from_string}。
+@c man end SYNTAX
+
+@chapter 表达式求值
+@c man begin EXPRESSION EVALUATION
+
+在计算算术表达式时，FFmpeg 使用内部公式求值器，
+通过 @file{libavutil/eval.h} 接口实现。
+
+表达式可以包含一元运算符、二元运算符、常量和函数。
+
+两个表达式 @var{expr1} 和 @var{expr2} 可以组合成另一个表达式
+"@var{expr1};@var{expr2}"。
+@var{expr1} 和 @var{expr2} 依次求值，新表达式的值为 @var{expr2} 的值。
+
+以下二元运算符可用：@code{+}、@code{-}、@code{*}、@code{/}、@code{^}。
+
+以下一元运算符可用：@code{+}、@code{-}。
+
+一些内部变量可用于存储和加载中间结果。可以使用 @code{ld} 和 @code{st}
+函数访问它们，索引参数从 0 到 9 变化以指定要访问哪个内部变量。
+
+以下函数可用：
+@table @option
+@item abs(x)
+计算 @var{x} 的绝对值。
+
+@item acos(x)
+计算 @var{x} 的反余弦。
+
+@item asin(x)
+计算 @var{x} 的反正弦。
+
+@item atan(x)
+计算 @var{x} 的反正切。
+
+@item atan2(y, x)
+计算 @var{y}/@var{x} 的反正切主值。
+
+@item between(x, min, max)
+如果 @var{x} 大于或等于 @var{min} 且小于或等于 @var{max}，则返回 1，否则返回 0。
+
+@item bitand(x, y)
+@item bitor(x, y)
+计算 @var{x} 和 @var{y} 的按位与/或运算。
+
+@var{x} 和 @var{y} 的求值结果在执行按位运算前转换为整数。
+
+请注意，转换为整数和转换回浮点数都可能丢失精度。
+注意大数字（通常是 2^53 及更大）的意外结果。
+
+@item ceil(expr)
+将表达式 @var{expr} 的值向上舍入到最近的整数。
+例如，"ceil(1.5)" 是 "2.0"。
+
+@item clip(x, min, max)
+返回 @var{x} 限制在 @var{min} 和 @var{max} 之间的值。
+
+@item cos(x)
+计算 @var{x} 的余弦。
+
+@item cosh(x)
+计算 @var{x} 的双曲余弦。
+
+@item eq(x, y)
+如果 @var{x} 和 @var{y} 相等，则返回 1，否则返回 0。
+
+@item exp(x)
+计算 @var{x} 的指数（以 @code{e}，欧拉数为底）。
+
+@item floor(expr)
+将表达式 @var{expr} 的值向下舍入到最近的整数。
+例如，"floor(-1.5)" 是 "-2.0"。
+
+@item gauss(x)
+计算 @var{x} 的高斯函数，对应于 @code{exp(-x*x/2) / sqrt(2*PI)}。
+
+@item gcd(x, y)
+返回 @var{x} 和 @var{y} 的最大公约数。如果 @var{x} 和 @var{y} 都为 0
+或其中任一或两者小于零，则行为未定义。
+
+@item gt(x, y)
+如果 @var{x} 大于 @var{y}，则返回 1，否则返回 0。
+
+@item gte(x, y)
+如果 @var{x} 大于或等于 @var{y}，则返回 1，否则返回 0。
+
+@item hypot(x, y)
+此函数类似于同名的 C 函数；它返回
+"sqrt(@var{x}*@var{x} + @var{y}*@var{y})"，即具有长度为 @var{x} 和 @var{y}
+的边的直角三角形的斜边长度，或点 (@var{x}, @var{y}) 到原点的距离。
+
+@item if(x, y)
+计算 @var{x}，如果结果非零则返回 @var{y} 的求值结果，否则返回 0。
+
+@item if(x, y, z)
+计算 @var{x}，如果结果非零则返回 @var{y} 的求值结果，否则返回 @var{z} 的求值结果。
+
+@item ifnot(x, y)
+计算 @var{x}，如果结果为零则返回 @var{y} 的求值结果，否则返回 0。
+
+@item ifnot(x, y, z)
+计算 @var{x}，如果结果为零则返回 @var{y} 的求值结果，否则返回 @var{z} 的求值结果。
+
+@item isinf(x)
+如果 @var{x} 是 +/-INFINITY，则返回 1.0，否则返回 0.0。
+
+@item isnan(x)
+如果 @var{x} 是 NAN，则返回 1.0，否则返回 0.0。
+
+@item ld(idx)
+加载之前用 st(@var{idx}, @var{expr}) 存储的索引为 @var{idx} 的内部变量的值。
+该函数返回加载的值。
+
+@item lerp(x, y, z)
+返回 @var{x} 和 @var{y} 之间按 @var{z} 比例的线性插值。
+
+@item log(x)
+计算 @var{x} 的自然对数。
+
+@item lt(x, y)
+如果 @var{x} 小于 @var{y}，则返回 1，否则返回 0。
+
+@item lte(x, y)
+如果 @var{x} 小于或等于 @var{y}，则返回 1，否则返回 0。
+
+@item max(x, y)
+返回 @var{x} 和 @var{y} 之间的最大值。
+
+@item min(x, y)
+返回 @var{x} 和 @var{y} 之间的最小值。
+
+@item mod(x, y)
+计算 @var{x} 除以 @var{y} 的余数。
+
+@item not(expr)
+如果 @var{expr} 为零，则返回 1.0，否则返回 0.0。
+
+@item pow(x, y)
+计算 @var{x} 的 @var{y} 次幂，等同于 "(@var{x})^(@var{y})"。
+
+@item print(t)
+@item print(t, l)
+以日志级别 @var{l} 打印表达式 @var{t} 的值。如果未指定 @var{l}，
+则使用默认日志级别。
+返回打印的表达式的值。
+
+@item random(idx)
+返回 0.0 到 1.0 之间的伪随机值。@var{idx} 是用于保存种子/状态的
+内部变量的索引，可以之前用 @code{st(idx)} 存储。
+
+要初始化种子，您需要将种子值作为 64 位无符号整数
+存储在索引为 @var{idx} 的内部变量中。
+
+例如，要在索引为 @code{0} 的内部变量中存储值为 @code{42} 的种子
+并打印几个随机值：
+@example
+st(0,42); print(random(0)); print(random(0)); print(random(0))
+@end example
+
+@item randomi(idx, min, max)
+返回 @var{min} 和 @var{max} 之间区间内的伪随机值。@var{idx} 是
+将用于保存种子/状态的内部变量的索引，可以之前用 @code{st(idx)} 存储。
+
+要初始化种子，您需要将种子值作为 64 位无符号整数
+存储在索引为 @var{idx} 的内部变量中。
+
+@item root(expr, max)
+在 0..@var{max} 区间内找到使表达式 @var{expr}（参数为 @var{ld(0)}）
+为 0 的输入值。
+
+@var{expr} 中的表达式必须表示连续函数，否则结果未定义。
+
+@var{ld(0)} 用于表示函数输入值，这意味着给定表达式将使用
+表达式可以通过 @code{ld(0)} 访问的各种输入值多次求值。
+当表达式求值为 0 时，将返回相应的输入值。
+
+@item round(expr)
+将表达式 @var{expr} 的值舍入到最近的整数。
+例如，"round(1.5)" 是 "2.0"。
+
+@item sgn(x)
+计算 @var{x} 的符号。
+
+@item sin(x)
+计算 @var{x} 的正弦。
+
+@item sinh(x)
+计算 @var{x} 的双曲正弦。
+
+@item sqrt(expr)
+计算 @var{expr} 的平方根。这等同于 "(@var{expr})^.5"。
+
+@item squish(x)
+计算表达式 @code{1/(1 + exp(4*x))}。
+
+@item st(idx, expr)
+将表达式 @var{expr} 的值存储在内部变量中。@var{idx} 指定要存储值的
+变量索引，是 0 到 9 之间的值。该函数返回存储在内部变量中的值。
+
+存储的值可以用 @code{ld(var)} 检索。
+
+注意：变量当前不在表达式之间共享。
+
+@item tan(x)
+计算 @var{x} 的正切。
+
+@item tanh(x)
+计算 @var{x} 的双曲正切。
+
+@item taylor(expr, x)
+@item taylor(expr, x, idx)
+在 @var{x} 处求泰勒级数值，给定表示函数在 0 处的第 @code{ld(idx)} 阶导数的表达式。
+
+当级数不收敛时，结果未定义。
+
+@var{ld(idx)} 用于表示 @var{expr} 中的导数阶数，
+这意味着给定表达式将使用表达式可以通过 @code{ld(idx)} 访问的
+各种输入值多次求值。如果未指定 @var{idx}，则假定为 0。
+
+注意，当您的导数在 y 而不是 0 时，可以使用 @code{taylor(expr, x-y)}。
+
+@item time(0)
+返回当前（挂钟）时间（以秒为单位）。
+
+@item trunc(expr)
+将表达式 @var{expr} 的值向零方向舍入到最近的整数。
+例如，"trunc(-1.5)" 是 "-1.0"。
+
+@item while(cond, expr)
+当表达式 @var{cond} 非零时计算表达式 @var{expr}，
+并返回最后一次 @var{expr} 求值的值，
+如果 @var{cond} 始终为假则返回 NAN。
+@end table
+
+以下常量可用：
+@table @option
+@item PI
+单位圆面积，约为 3.14
+@item E
+exp(1)（欧拉数），约为 2.718
+@item PHI
+黄金比例 (1+sqrt(5))/2，约为 1.618
+@end table
+
+假设如果表达式的值非零则被认为是"真"，请注意：
+
+@code{*} 的作用类似于 AND
+
+@code{+} 的作用类似于 OR
+
+例如，构造：
+@example
+if (A AND B) then C
+@end example
+等同于：
+@example
+if(A*B, C)
+@end example
+
+在您的 C 代码中，您可以扩展一元和二元函数的列表，
+并定义可识别的常量，使它们可用于您的表达式。
+
+求值器还识别国际单位制前缀。
+如果在前缀后附加 'i'，则使用二进制前缀，基于 1024 的幂而不是 1000 的幂。
+'B' 后缀将值乘以 8，可以附加在单位前缀之后或单独使用。
+这允许使用例如 'KB'、'MiB'、'G' 和 'B' 作为数字后缀。
+
+以下是可用的国际单位制前缀列表，附有相应的 10 次幂和 2 次幂：
+@table @option
+@item y
+10^-24 / 2^-80
+@item z
+10^-21 / 2^-70
+@item a
+10^-18 / 2^-60
+@item f
+10^-15 / 2^-50
+@item p
+10^-12 / 2^-40
+@item n
+10^-9 / 2^-30
+@item u
+10^-6 / 2^-20
+@item m
+10^-3 / 2^-10
+@item c
+10^-2
+@item d
+10^-1
+@item h
+10^2
+@item k
+10^3 / 2^10
+@item K
+10^3 / 2^10
+@item M
+10^6 / 2^20
+@item G
+10^9 / 2^30
+@item T
+10^12 / 2^40
+@item P
+10^15 / 2^50
+@item E
+10^18 / 2^60
+@item Z
+10^21 / 2^70
+@item Y
+10^24 / 2^80
+@end table
+
+@c man end EXPRESSION EVALUATION
